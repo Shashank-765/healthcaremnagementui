@@ -1,0 +1,379 @@
+/* Main Layout */
+.dashboard-container {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+}
+
+/* Main Content Styles */
+.main-content {
+    flex: 1;
+    padding: 20px;
+    margin-left: 250px; /* Default sidebar width */
+    transition: margin-left 0.3s ease;
+}
+
+/* Mobile Toggle Button */
+.mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
+    background: transparent;
+    border: none;
+    color: #333;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+}
+
+/* Medical History Grid */
+.medical-history-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Exactly 2 columns */
+    gap: 20px;
+    padding: 20px 0;
+}
+
+/* History Item Styles */
+.history-item {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+}
+
+/* Responsive Breakpoints */
+
+@media screen and (max-width: 576px) {
+    .navbar {
+        padding: 10px 20px;
+        flex-direction: row !important;
+      }
+      .row {
+        flex-direction: row;
+      }
+      
+      .mobile-toggle {
+        width: 35px;
+        margin-top: 20px !important;
+        height: 35px;
+        display: block;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1001;
+        background: transparent;
+        border: none;
+        color: #333;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        background-color: #fff;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        overflow-y: auto;
+      }
+    
+      .sidebar.expanded {
+        left: 0;
+      }
+      .sidebar.collapsed {
+        left: -280px;
+      }
+    
+      .main-content {
+        width: 100% !important;
+        margin-left: 0 !important;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+    
+      .main-content.content-shifted {
+        margin-left: 0 !important;
+        width: 100% !important;
+      }
+      .sidebar.expanded ~ .main-content {
+        width: calc(100% - 280px) !important;
+        margin-left: 280px !important;
+      }
+    
+      /* When sidebar is collapsed, content takes full width */
+      .sidebar.collapsed ~ .main-content {
+        width: 100% !important;
+        margin-left: 0 !important;
+      }
+    .main-content {
+        padding: 12px;
+    }
+
+    .mobile-toggle {
+        top: 10px;
+        left: 10px;
+    }
+
+    .medical-history-grid {
+        padding: 15px 0;
+    }
+
+    .history-item {
+        padding: 15px;
+    }
+
+    /* Adjust card layouts */
+    .dashboard-card {
+        margin-bottom: 15px;
+    }
+
+    .card-header {
+        padding: 12px;
+    }
+
+    .card-content {
+        padding: 12px;
+    }
+    .admin-banner {
+      height: 50vh;
+  }
+
+  .doctor-profile {
+      width: 80px;
+      height: 80px;
+      margin-right: 15px;
+  }
+
+  .banner-content h1 {
+      font-size: 1.5rem;
+  }
+}
+
+
+
+/* Banner Styles */
+.admin-banner {
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.banner-content {
+    position: relative;
+    padding: 20px;
+    color: #fff;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
+}
+
+.doctor-profile {
+    width: 120px;
+    height: 120px;
+    margin-right: 30px;
+}
+
+.doctor-profile img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Responsive Banner */
+@media screen and (max-width: 768px) {
+    .navbar {
+        padding: 10px 20px;
+        flex-direction: row !important;
+      }
+      .row {
+        flex-direction: row;
+      }
+      
+      .mobile-toggle {
+        width: 35px;
+        margin-top: 20px !important;
+        height: 35px;
+        display: block;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1001;
+        background: transparent;
+        border: none;
+        color: #333;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        background-color: #fff;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        overflow-y: auto;
+      }
+    
+      .sidebar.expanded {
+        left: 0;
+      }
+      .sidebar.collapsed {
+        left: -280px;
+      }
+    
+      .main-content {
+        width: 100% !important;
+        margin-left: 0 !important;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+    
+      .main-content.content-shifted {
+        margin-left: 0 !important;
+        width: 100% !important;
+      }
+      .sidebar.expanded ~ .main-content {
+        width: calc(100% - 280px) !important;
+        margin-left: 280px !important;
+      }
+    
+      /* When sidebar is collapsed, content takes full width */
+      .sidebar.collapsed ~ .main-content {
+        width: 100% !important;
+        margin-left: 0 !important;
+      }
+    .admin-banner {
+        height: 50vh;
+    }
+
+    .doctor-profile {
+        width: 100px;
+        height: 100px;
+        margin-right: 20px;
+    }
+
+    .banner-content h1 {
+        font-size: 1.8rem;
+    }
+}
+
+@media screen and (max-width: 512px) {
+  .navbar {
+      padding: 10px 20px;
+      flex-direction: row !important;
+    }
+    .row {
+      flex-direction: row;
+    }
+    
+    .mobile-toggle {
+      width: 35px;
+      margin-top: 20px !important;
+      height: 35px;
+      display: block;
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1001;
+      background: transparent;
+      border: none;
+      color: #333;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -280px;
+      width: 280px;
+      height: 100vh;
+      background-color: #fff;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+  
+    .sidebar.expanded {
+      left: 0;
+    }
+    .sidebar.collapsed {
+      left: -280px;
+    }
+  
+    .main-content {
+      width: 100% !important;
+      margin-left: 0 !important;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+  
+    .main-content.content-shifted {
+      margin-left: 0 !important;
+      width: 100% !important;
+    }
+    .sidebar.expanded ~ .main-content {
+      width: calc(100% - 280px) !important;
+      margin-left: 280px !important;
+    }
+  
+    /* When sidebar is collapsed, content takes full width */
+    .sidebar.collapsed ~ .main-content {
+      width: 100% !important;
+      margin-left: 0 !important;
+    }
+  .admin-banner {
+      height: 50vh;
+  }
+
+  .doctor-profile {
+      width: 60px;
+      height: 60px;
+      margin-right: 10px;
+  }
+
+  .banner-content h1 {
+      font-size: 1.2rem;
+  }
+
+  .banner-content {
+      padding: 15px;
+  }
+   .card-header {
+      padding: 10px;
+  }
+
+  .card-content {
+      padding: 10px;
+  }
+
+  /* Adjust text sizes */
+  .card-header h3 {
+      font-size: 1.1rem;
+  }
+
+  .history-item {
+      font-size: 0.9rem;
+  }
+}

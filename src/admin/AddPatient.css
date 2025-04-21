@@ -1,0 +1,331 @@
+/* Base Container */
+.add-patient-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f6fa;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Sidebar Base Styles */
+.admin-sidebar {
+  width: 280px;
+  height: 100vh;
+  background: white;
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+/* Logo Styles */
+.logo {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.logo img {
+  max-width: 150px;
+  height: auto;
+}
+
+/* Main Content */
+.add-patient-main-content {
+  background-color: #dcdcdc;
+  margin-left: 280px;
+  padding: 30px;
+  width: calc(100% - 280px);
+  transition: all 0.3s ease;
+}
+
+.add-patient-main-content.expanded {
+  margin-left: 0;
+  width: 100%;
+}
+
+/* Form Container */
+.add-patient-form-container {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-patient-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Form Elements */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-group label i {
+  color: #0066FF;
+  width: 16px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #0066FF;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.form-actions button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-btn {
+  background-color: #f8f9fa;
+  color: #666;
+}
+
+.submit-btn {
+  background-color: #0066FF;
+  color: white;
+}
+
+/* Media Queries */
+@media screen and (max-width: 1250px) {
+  .mobile-toggle {
+    display: flex;
+  }
+
+  .admin-sidebar {
+    width: 260px;
+    transform: translateX(-260px);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .admin-sidebar {
+    width: 250px;
+    transform: translateX(-250px);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 250px;
+    width: calc(100% - 250px);
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .admin-sidebar {
+    width: 240px;
+    transform: translateX(-240px);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .admin-sidebar {
+    width: 230px;
+    transform: translateX(-230px);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 230px;
+    width: calc(100% - 230px);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .admin-sidebar {
+    width: 220px;
+    transform: translateX(-220px);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 15px;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 245px;
+    width: calc(100% - 220px);
+  }
+
+  .mobile-toggle {
+    width: 38px;
+    height: 38px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .admin-sidebar {
+    width: 210px;
+    transform: translateX(-210px);
+  }
+
+  .admin-sidebar.open {
+    width:35%;
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 210px;
+    width: calc(100% - 210px);
+  }
+
+  .mobile-toggle {
+    width: 35px;
+    height: 35px;
+  }
+
+  .add-patient-form-container {
+    padding: 20px;
+  }
+}
+
+@media screen and (max-width: 512px) {
+  .admin-sidebar {
+    width: 150px;
+    transform: translateX(-200px);
+  }
+
+  .admin-sidebar.open {
+    width:40%;
+    transform: translateX(0);
+  }
+
+  .add-patient-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-patient-main-content:not(.expanded) {
+    margin-left: 200px;
+    width: calc(100% - 180px);
+  }
+
+  .mobile-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .add-patient-form-container {
+    padding: 15px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 10px;
+  }
+} 

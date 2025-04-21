@@ -1,0 +1,475 @@
+/* bookAppointment.css */
+
+/* Main Layout */
+.dashboard-container {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+}
+
+/* Main Content Styles */
+.main-content3 {
+    flex: 1;
+    padding: 20px;
+    margin-left: 280px;
+    transition: all 0.3s ease;
+    width: calc(100% - 280px);
+}
+
+/* Banner Styles */
+.admin-banner-patient {
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.banner-content {
+    position: relative;
+    padding: 20px;
+    color: #fff;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
+}
+
+.banner-content h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.doctor-profile-book {
+    width: 120px;
+    height: 120px;
+    margin-right: 30px;
+}
+
+.doctor-profile-book img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Card Styles */
+.dashboard-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.book-appointment-card {
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    border-radius: 10px !important;
+    background: #f8f9fa;
+}
+
+.card-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.card-header h3 i {
+    color: #4e73df;
+}
+
+.card-content {
+    padding: 20px;
+    border-radius: 10px;
+    background: #fff;
+}
+
+/* Sidebar Toggle Button */
+.mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
+    background: transparent;
+    border: none;
+    color: #333;
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 35px;
+    height: 35px;
+}
+
+/* Sidebar States */
+.sidebar-closed .main-content3 {
+    margin-left: 0;
+}
+
+/* Media Queries */
+@media (min-width: 1251px) {
+    .sidebar {
+        width: 280px;
+        left: 0;
+        transform: none;
+    }
+
+    .sidebar.collapsed,
+    .sidebar.expanded {
+        transform: none;
+        left: 0;
+    }
+
+    .main-content3 {
+        margin-left: 280px;
+        width: calc(100% - 280px);
+    }
+
+    .mobile-toggle {
+        display: none;
+    }
+}
+
+@media (max-width: 1250px) {
+    .mobile-toggle {
+        display: block;
+        margin-top: 20px !important;
+    }
+
+    .sidebar {
+        left: -280px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -280px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 280px);
+        margin-left: 280px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar.expanded::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+    }
+
+    .banner-content h1 {
+        font-size: 2.2rem;
+    }
+}
+
+@media (max-width: 1200px) {
+    .mobile-toggle {
+        display: block;
+        margin-top: 20px !important;
+    }
+
+    .sidebar {
+        left: -280px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -280px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 280px);
+        margin-left: 280px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .banner-content h1 {
+        font-size: 2.2rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .mobile-toggle {
+        display: block;
+        margin-top: 20px !important;
+    }
+
+    .sidebar {
+        left: -280px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -280px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 280px);
+        margin-left: 280px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .admin-banner-patient {
+        height: 50vh;
+    }
+
+    .doctor-profile-book {
+        width: 100px;
+        height: 100px;
+        margin-right: 20px;
+    }
+
+    .banner-content h1 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .mobile-toggle {
+        display: block;
+        margin-top: 20px !important;
+    }
+
+    .sidebar {
+        left: -280px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -280px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+        padding: 15px;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 280px);
+        margin-left: 280px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .admin-banner-patient {
+        height: 50vh;
+    }
+
+    .banner-content {
+        padding: 15px;
+    }
+
+    .banner-content h1 {
+        font-size: 1.8rem;
+    }
+
+    .doctor-profile-book {
+        width: 80px;
+        height: 80px;
+        margin-right: 15px;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .card-content {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 576px) {
+    .mobile-toggle {
+        width: 30px;
+        height: 30px;
+        margin-top: 15px !important;
+    }
+
+    .sidebar {
+        width: 250px;
+        left: -250px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -250px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+        padding: 10px;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 250px);
+        margin-left: 250px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .admin-banner-patient {
+        height: 50vh;
+    }
+
+    .banner-content {
+        padding: 10px;
+    }
+
+    .doctor-profile-book {
+        width: 60px;
+        height: 60px;
+        margin-right: 10px;
+    }
+
+    .banner-content h1 {
+        font-size: 1.5rem;
+    }
+
+    .card-header h3 {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 512px) {
+    .mobile-toggle {
+        width: 28px;
+        height: 28px;
+        margin-top: 12px !important;
+    }
+
+    .sidebar {
+        width: 220px;
+        left: -220px;
+    }
+
+    .sidebar.expanded {
+        left: 0;
+    }
+
+    .sidebar.collapsed {
+        left: -220px;
+    }
+
+    .main-content3 {
+        width: 100%;
+        margin-left: 0;
+        padding: 8px;
+    }
+
+    .sidebar.expanded ~ .main-content3 {
+        width: calc(100% - 220px);
+        margin-left: 220px;
+    }
+
+    .sidebar.collapsed ~ .main-content3 {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .admin-banner-patient {
+        height: 50vh;
+    }
+
+    .banner-content {
+        flex-direction: column;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .doctor-profile-book {
+        width: 50px;
+        height: 50px;
+        margin: 0 0 8px 0;
+    }
+
+    .banner-content h1 {
+        font-size: 1.2rem;
+    }
+
+    .card-header {
+        padding: 12px;
+    }
+
+    .card-content {
+        padding: 12px;
+    }
+
+    .card-header h3 {
+        font-size: 1rem;
+    }
+}
