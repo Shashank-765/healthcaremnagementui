@@ -648,8 +648,9 @@ const AdminDashboard = () => {
 <div className="header-section-admindashboard">
         <div className="header-section">
           <div className="header-content2">
-          <h2>Hospital Doctors</h2>
-            <div className="search-bar">
+            <h2>Hospital Doctors</h2>
+            <div className="header-content-right">
+            <div className="search-bar1">
               <i className="fas fa-search search-icon"></i>
               <input 
                 type="text" 
@@ -657,6 +658,7 @@ const AdminDashboard = () => {
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
+            </div>
             </div>
           </div>
         </div>
