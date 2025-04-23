@@ -138,6 +138,16 @@ const AdminDashboard = () => {
         { label: 'All Patients', path: '/admin/patients' },
         { label: 'Add Patient', path: '/admin/add-patient' }
       ]
+    },
+    {
+      id: 'appointments',
+      icon: 'fas fa-calendar-check',
+      label: 'Appointments',
+      path: '/admin/appointments',
+      submenu: [
+        { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
+        { label: 'Pending Appointments', path: '/admin/pending-appointments' }
+      ]
     }
   ];
 
@@ -173,11 +183,11 @@ const AdminDashboard = () => {
 
   // Dashboard data
   const dashboardData = {
-    totalDoctors: 500,
+    newDoctors: 500,
     totalPatients: 800,
     totalStaff: 900,
     totalBeds: 1000,
-    dailySurgery: 100,
+    totalAppointment: 100,
     newPatients: 500,
     dailyReleased: 200
   };
@@ -481,8 +491,8 @@ const AdminDashboard = () => {
               <i className="fas fa-procedures"></i>
             </div>
             <div className="small-card-info">
-              <h5>Daily Surgery</h5>
-              <p>{dashboardData.dailySurgery}</p>
+              <h5>Total Appointment</h5>
+              <p>{dashboardData.totalAppointment}</p>
             </div>
           </div>
 
@@ -521,8 +531,8 @@ const AdminDashboard = () => {
               <i className="fas fa-user-md"></i>
             </div>
             <div className="small-card-info">
-              <h5>Total Doctors</h5>
-              <p>{dashboardData.totalDoctors}</p>
+              <h5>New Doctors</h5>
+              <p>{dashboardData.newDoctors}</p>
             </div>
           </div>
         </div>
@@ -557,27 +567,11 @@ const AdminDashboard = () => {
               </div>
             </div>
           ))}
-        </div>
-        <div className="appointment-pagination">
-          <button 
-            className="pagination-button"
-            onClick={() => setConfirmedPage(prev => Math.max(prev - 1, 1))}
-            disabled={confirmedPage === 1}
-          >
-            <i className="fas fa-chevron-left"></i>
-          </button>
-          <span className="pagination-info">
-            Page {confirmedPage} of {Math.ceil(confirmedAppointments.length / itemsPerPage)}
-          </span>
-          <button 
-            className="pagination-button"
-            onClick={() => setConfirmedPage(prev => 
-              Math.min(prev + 1, Math.ceil(confirmedAppointments.length / itemsPerPage))
-            )}
-            disabled={confirmedPage >= Math.ceil(confirmedAppointments.length / itemsPerPage)}
-          >
-            <i className="fas fa-chevron-right"></i>
-          </button>
+          <div className="view-more-link">
+            <button onClick={() => navigate('/admin/confirmed-appointments')} className="view-more-btn">
+              View More <i className="fas fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -618,27 +612,11 @@ const AdminDashboard = () => {
               </div>
             </div>
           ))}
-        </div>
-        <div className="appointment-pagination">
-          <button 
-            className="pagination-button"
-            onClick={() => setPendingPage(prev => Math.max(prev - 1, 1))}
-            disabled={pendingPage === 1}
-          >
-            <i className="fas fa-chevron-left"></i>
-          </button>
-          <span className="pagination-info">
-            Page {pendingPage} of {Math.ceil(pendingAppointments.length / itemsPerPage)}
-          </span>
-          <button 
-            className="pagination-button"
-            onClick={() => setPendingPage(prev => 
-              Math.min(prev + 1, Math.ceil(pendingAppointments.length / itemsPerPage))
-            )}
-            disabled={pendingPage >= Math.ceil(pendingAppointments.length / itemsPerPage)}
-          >
-            <i className="fas fa-chevron-right"></i>
-          </button>
+          <div className="view-more-link">
+            <button onClick={() => navigate('/admin/pending-appointments')} className="view-more-btn">
+              View More <i className="fas fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -68,6 +68,16 @@ const PatientsList = () => {
         { label: 'All Patients', path: '/admin/patients' },
         { label: 'Add Patient', path: '/admin/add-patient' }
       ]
+    },
+    {
+      id: 'appointments',
+      icon: 'fas fa-calendar-check',
+      label: 'Appointments',
+      path: '/admin/appointments',
+      submenu: [
+        { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
+        { label: 'Pending Appointments', path: '/admin/pending-appointments' }
+      ]
     }
   ];
 
@@ -252,7 +262,7 @@ const PatientsList = () => {
         <div className="patients-header">
           <div className="header-content">
             <div className="header-left">
-              <h2>Hospital patients</h2>
+              <h2 style={{marginLeft:'20px'}}>Hospital patients</h2>
             </div>
             <div className="header-right">
               <div className="department-select">

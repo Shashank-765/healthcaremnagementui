@@ -7,6 +7,8 @@ import DoctorsList from './admin/DoctorsList';
 import PatientsList from './admin/PatientsList';
 import AddDoctor from './admin/AddDoctor';
 import AddPatient from './admin/AddPatient';
+import ConfirmedAppointments from './admin/ConfirmedAppointments';
+import PendingAppointments from './admin/PendingAppointments';
 import './App.css';
 import PatientDashboard from './patient/PatientDashboard';
 import DoctorDashboard from './doctor/DoctorDashboard';
@@ -66,6 +68,9 @@ function App() {
       <Route path="/admin/patients" element={<PatientsList />} />
       <Route path="/admin/add-doctor" element={<AddDoctor />} />
       <Route path="/admin/add-patient" element={<AddPatient />} />
+      {/* <Route path="/admin/appointments" element={<Appointments />} /> */}
+      <Route path="/admin/confirmed-appointments" element={<ConfirmedAppointments />} />
+      <Route path="/admin/pending-appointments" element={<PendingAppointments />} />
       
     </Routes>
   );

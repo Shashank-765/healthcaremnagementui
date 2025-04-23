@@ -118,6 +118,16 @@ const AddPatient = () => {
         { label: 'All Patients', path: '/admin/patients' },
         { label: 'Add Patient', path: '/admin/add-patient' }
       ]
+    },
+    {
+      id: 'appointments',
+      icon: 'fas fa-calendar-check',
+      label: 'Appointments',
+      path: '/admin/appointments',
+      submenu: [
+        { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
+        { label: 'Pending Appointments', path: '/admin/pending-appointments' }
+      ]
     }
   ];
 
