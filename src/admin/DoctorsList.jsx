@@ -405,6 +405,9 @@ const DoctorsList = () => {
                     <button className="delete-btn" onClick={() => handleDelete(doctor)}>
                       <i className="fas fa-trash"></i>
                     </button>
+                    <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
+                      <i className="fas fa-calendar-plus"></i>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -588,6 +591,142 @@ const DoctorsList = () => {
                   <button className="delete-confirm-btn" onClick={handleDeleteConfirm}>Delete</button>
                   <button className="cancel-btn" onClick={() => setShowDeletePopup(false)}>Cancel</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Modal */}
+        {showScheduleModal && selectedDoctor && (
+          <div className="modal-overlay" onClick={closeScheduleModal}>
+            <div className="modal-content schedule-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Schedule Appointment</h2>
+                <button className="close-button" onClick={closeScheduleModal}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="schedule-doctor-info">
+                  <div className="profile-image">
+                    <i className="fas fa-user-md"></i>
+                  </div>
+                  <div className="doctor-details">
+                    <h3>{selectedDoctor.name}</h3>
+                    <p>{selectedDoctor.specialization}</p>
+                    <p><i className="fas fa-calendar"></i> Available: {selectedDoctor.availability}</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleScheduleSubmit} className="schedule-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>
+                        <i className="fas fa-calendar"></i>
+                        Preferred Date
+                      </label>
+                      <input
+                        type="date"
+                        name="date"
+                        value={scheduleForm.date}
+                        onChange={handleInputChange}
+                        required
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>
+                        <i className="fas fa-clock"></i>
+                        Preferred Time
+                      </label>
+                      <select
+                        name="time"
+                        value={scheduleForm.time}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        <option value="09:00">09:00 AM</option>
+                        <option value="10:00">10:00 AM</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="12:00">12:00 PM</option>
+                        <option value="14:00">02:00 PM</option>
+                        <option value="15:00">03:00 PM</option>
+                        <option value="16:00">04:00 PM</option>
+                        <option value="17:00">05:00 PM</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>
+                        <i className="fas fa-user"></i>
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={scheduleForm.name}
+                        onChange={handleInputChange}
+                        placeholder="Enter your full name"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>
+                        <i className="fas fa-phone"></i>
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={scheduleForm.phone}
+                        onChange={handleInputChange}
+                        placeholder="Enter your phone number"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <i className="fas fa-envelope"></i>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={scheduleForm.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter your email address"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <i className="fas fa-notes-medical"></i>
+                      Reason for Visit
+                    </label>
+                    <textarea
+                      name="reason"
+                      value={scheduleForm.reason}
+                      onChange={handleInputChange}
+                      placeholder="Briefly describe your reason for visit"
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="cancel-btn" onClick={closeScheduleModal}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="submit-btn">
+                      Confirm Appointment
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>

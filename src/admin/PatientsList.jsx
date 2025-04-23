@@ -5,6 +5,9 @@ import logoImage from '../image/logo.png';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import Navbar from '../component/Navbar';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const PatientsList = () => {
   const navigate = useNavigate();
@@ -17,6 +20,9 @@ const PatientsList = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -97,45 +103,46 @@ const PatientsList = () => {
     setShowAllPatients(!showAllPatients);
   };
 
-  // Mock data for patients
-  const patients = [
-    {
-      id: 1,
-      name: "John Smith",
-      age: 45,
-      gender: "Male",
-      bloodGroup: "A+",
-      condition: "Cardiac",
-      admitDate: "2024-02-15",
-      doctor: "Dr. Sarah Johnson",
-      room: "301",
-      contact: "+1234567890"
-    },
-    {
-      id: 2,
-      name: "Emma Wilson",
-      age: 28,
-      gender: "Female",
-      bloodGroup: "O-",
-      condition: "Neurology",
-      admitDate: "2024-02-14",
-      doctor: "Dr. Michael Chen",
-      room: "205",
-      contact: "+1234567891"
-    },
-    {
-      id: 3,
-      name: "David Brown",
-      age: 8,
-      gender: "Male",
-      bloodGroup: "B+",
-      condition: "Pediatric Care",
-      admitDate: "2024-02-16",
-      doctor: "Dr. Emily Brown",
-      room: "103",
-      contact: "+1234567892"
+  // Fetch patients data
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/patient/allpatientdata`, {
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any auth headers if required
+          // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.data.success) {
+        // Map the response data to match your table structure
+        const formattedPatients = response.data.data.map(patient => ({
+          // _id: patient._id,
+          name: patient.fullName,
+          email: patient.email,
+          admitDate: patient.admitDate,
+          condition: patient.medicalCondition,
+          room: patient.roomNumber,
+          doctor: patient.assignedDoctor,
+          // Add other fields as needed
+        }));
+        
+        setPatients(formattedPatients);
+      } else {
+        setError(response.data.message || 'Failed to fetch patients data');
+      }
+      setLoading(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch patients data');
+      setLoading(false);
+      console.error('Error fetching patients:', err);
     }
-  ];
+  };
 
   // Add handlers for popups
   const handleView = (patient) => {
@@ -157,19 +164,54 @@ const PatientsList = () => {
     navigate('/admin/add-patient');
   };
 
-  const handleEditSubmit = (editedPatient) => {
-    // Here you would typically update the patient data in your backend
-    // For now, we'll just close the popup and redirect
-    setShowEditPopup(false);
-    navigate('/admin/patients');
+  // Handle Edit Submit with API integration
+  const handleEditSubmit = async (editedPatient) => {
+    try {
+      const updateData = {
+        medicalCondition: editedPatient.condition,
+        roomNumber: editedPatient.room,
+        assignedDoctor: editedPatient.doctor
+      };
+
+      await axios.put(`${API_URL}/patient/update/${editedPatient.name}`, updateData);
+      setShowEditPopup(false);
+      fetchPatients(); 
+    } catch (err) {
+      console.error('Error updating patient:', err);
+      alert('Failed to update patient information');
+    }
   };
 
-  const handleDeleteConfirm = () => {
-    // Here you would typically delete the patient from your backend
-    // For now, we'll just close the popup
-    setShowDeletePopup(false);
+ const handleDeleteConfirm = async () => {
+    try {
+      await axios.delete(`${API_URL}/patient/delete-patientdata/${selectedPatient.name}`);
+      setShowDeletePopup(false);
+      fetchPatients(); // Refresh the list after delete
+    } catch (err) {
+      console.error('Error deleting patient:', err.message);
+      // Handle error (show message to user)
+    }
   };
 
+  // Add loading state in the render
+  if (loading) {
+    return (
+      <div className="loading-spinner">
+        <i className="fas fa-spinner fa-spin"></i>
+        Loading patients...
+      </div>
+    );
+  }
+
+  // Add error state in the render
+  if (error) {
+    return (
+      <div className="error-message">
+        <i className="fas fa-exclamation-circle"></i>
+        {error}
+      </div>
+    );
+  }
   return (
     <div className="patients-list-container">
       {/* Sidebar */}
@@ -265,14 +307,14 @@ const PatientsList = () => {
               <h2 style={{marginLeft:'20px'}}>Hospital patients</h2>
             </div>
             <div className="header-right">
-              <div className="department-select">
+              {/* <div className="department-select">
                 <select>
                   <option value="">All Departments</option>
                   <option value="cardiac">Cardiac</option>
                   <option value="neurology">Neurology</option>
                   <option value="pediatric">Pediatric</option>
                 </select>
-              </div>
+              </div> */}
               <div className="search-bar">
                 <input type="text" placeholder="Search patients..." />
               </div>
@@ -281,35 +323,35 @@ const PatientsList = () => {
         </div>
 
         <div className="patients-table">
+          {patients.length === 0 ? (
+            <div className="no-patients">
+              <i className="fas fa-user-injured"></i>
+              <p>No patients found</p>
+            </div>
+          ) : (
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                {/* <th>ID</th> */}
                 <th>Name</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Blood Group</th>
-                <th>Condition</th>
+                <th>Email</th>
                 <th>Admit Date</th>
-                <th>Doctor</th>
+                <th>Condition</th>
                 <th>Room</th>
-                <th>Contact</th>
+                <th>Doctor</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {patients.slice(0, showAllPatients ? patients.length : 5).map(patient => (
-                <tr key={patient.id}>
-                  <td>{patient.id}</td>
+              {patients.slice(0, showAllPatients ? patients.length : 3).map(patient => (
+                <tr key={patient._id}>
+                  {/* <td>{patient._id}</td> */}
                   <td>{patient.name}</td>
-                  <td>{patient.age}</td>
-                  <td>{patient.gender}</td>
-                  <td>{patient.bloodGroup}</td>
-                  <td>{patient.condition}</td>
+                  <td>{patient.email}</td>
                   <td>{patient.admitDate}</td>
-                  <td>{patient.doctor}</td>
+                  <td>{patient.condition}</td>
                   <td>{patient.room}</td>
-                  <td>{patient.contact}</td>
+                  <td>{patient.doctor}</td>
                   <td>
                     <button className="view-btn" onClick={() => handleView(patient)}>
                       <i className="fas fa-eye"></i>
@@ -325,7 +367,8 @@ const PatientsList = () => {
               ))}
             </tbody>
           </table>
-          {patients.length > 5 && (
+          )}
+          {patients.length > 3 && (
             <div className="view-more-less">
               <button 
                 className={showAllPatients ? "view-less-btn" : "view-more-btn"}
@@ -353,14 +396,14 @@ const PatientsList = () => {
             <div className="popup-body">
               <div className="patient-details">
                 <p><strong>Name:</strong> {selectedPatient.name}</p>
-                <p><strong>Age:</strong> {selectedPatient.age}</p>
-                <p><strong>Gender:</strong> {selectedPatient.gender}</p>
-                <p><strong>Blood Group:</strong> {selectedPatient.bloodGroup}</p>
                 <p><strong>Condition:</strong> {selectedPatient.condition}</p>
                 <p><strong>Admit Date:</strong> {selectedPatient.admitDate}</p>
                 <p><strong>Doctor:</strong> {selectedPatient.doctor}</p>
                 <p><strong>Room:</strong> {selectedPatient.room}</p>
-                <p><strong>Contact:</strong> {selectedPatient.contact}</p>
+                {/* <p><strong>Age:</strong>{selectedPatient.age}</p> */}
+                {/* <p><strong>Gender:</strong> {selectedPatient.gender}</p> */}
+                {/* <p><strong>Blood Group:</strong> {selectedPatient.bloodGroup}</p> */}
+                {/* <p><strong>Contact:</strong> {selectedPatient.contact}</p> */}
               </div>
             </div>
           </div>
@@ -382,20 +425,63 @@ const PatientsList = () => {
                 handleEditSubmit(selectedPatient);
               }}>
                 <div className="form-group">
-                  <label>Name:</label>
+                  <label>Patient Name:</label>
                   <input
                     type="text"
                     value={selectedPatient.name}
-                    onChange={(e) => setSelectedPatient({
-                      ...selectedPatient,
-                      name: e.target.value
-                    })}
+                    disabled
+                    className="disabled-input"
                   />
                 </div>
-                {/* Add similar form fields for other patient details */}
+                
+                <div className="form-group">
+                  <label>Medical Condition:</label>
+                  <input
+                    type="text"
+                    value={selectedPatient.condition}
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      condition: e.target.value
+                    })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Room Number:</label>
+                  <input
+                    type="text"
+                    value={selectedPatient.room}
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      room: e.target.value
+                    })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Assigned Doctor:</label>
+                  <input
+                    type="text"
+                    value={selectedPatient.doctor}
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      doctor: e.target.value
+                    })}
+                    required
+                  />
+                </div>
+
                 <div className="popup-footer">
                   <button type="submit" className="save-btn">Save Changes</button>
-                  <button type="button" className="cancel-btn" onClick={() => setShowEditPopup(false)}>Cancel</button>
+                  <button 
+                    type="button" 
+                    className="cancel-btn" 
+                    onClick={() => setShowEditPopup(false)}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
             </div>

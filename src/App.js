@@ -19,6 +19,8 @@ import Profile from './component/Profile';
 import TotalAppointments from './doctor/TotalAppointments';
 import CancelAppointments from './doctor/CancelAppointments';
 import PatientHistory from './doctor/PatientHistory';
+import AdminSignup from './admin/adminSignup';
+import AdminLogin from './admin/adminlogin';
 
 // Protected Route component
 const ProtectedRoute = ({ children, allowedRoles = ['doctor'] }) => {
@@ -71,6 +73,8 @@ function App() {
       {/* <Route path="/admin/appointments" element={<Appointments />} /> */}
       <Route path="/admin/confirmed-appointments" element={<ConfirmedAppointments />} />
       <Route path="/admin/pending-appointments" element={<PendingAppointments />} />
+      <Route path="/admin/signup" element={<AdminSignup />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
       
     </Routes>
   );

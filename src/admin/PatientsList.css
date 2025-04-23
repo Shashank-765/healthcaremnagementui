@@ -863,3 +863,43 @@ td:last-child {
   border-top-left-radius: 10px;
   background:white;
 }
+
+/* Add these new styles */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.2rem;
+  color: #00c7a9;
+}
+
+.loading-spinner i {
+  margin-right: 10px;
+  font-size: 2rem;
+}
+
+.error-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #ff4444;
+  font-size: 1.2rem;
+}
+
+.error-message i {
+  margin-right: 10px;
+}
+
+.no-patients {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.no-patients i {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  color: #00c7a9;
+}

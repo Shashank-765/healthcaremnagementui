@@ -15,17 +15,8 @@ const AdminDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
-  const [scheduleForm, setScheduleForm] = useState({
-    date: '',
-    time: '',
-    doctor: '',
-    patient: '',
-    status: 'pending'
-  });
-
   // Pagination state
   const [itemsPerPage] = useState(3);
   const [confirmedPage, setConfirmedPage] = useState(1);
@@ -102,11 +93,6 @@ const AdminDashboard = () => {
       image: "https://example.com/doctor3.jpg"
     }
   ];
-
-  // const handleUserClick = () => {
-  //   setShowUserDropdown(!showUserDropdown);
-  //   navigate('/admin/profile');
-  // };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -193,7 +179,7 @@ const AdminDashboard = () => {
   };
 
   const handleLogout = () => {
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const handleViewProfile = (doctor) => {
@@ -201,44 +187,9 @@ const AdminDashboard = () => {
     setShowModal(true);
   };
 
-  const handleSchedule = (doctor) => {
-    setSelectedDoctor(doctor);
-    setShowScheduleModal(true);
-  };
-
   const closeModal = () => {
     setShowModal(false);
     setSelectedDoctor(null);
-  };
-
-  const closeScheduleModal = () => {
-    setShowScheduleModal(false);
-    setSelectedDoctor(null);
-    setScheduleForm({
-      date: '',
-      time: '',
-      name: '',
-      email: '',
-      phone: '',
-      reason: ''
-    });
-  };
-
-  const handleScheduleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Schedule Form Submitted:', {
-      doctor: selectedDoctor,
-      appointment: scheduleForm
-    });
-    closeScheduleModal();
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setScheduleForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   const handleSearchChange = (e) => {
@@ -355,23 +306,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="navbar-right">
-            {/* <div className="user-menu" onClick={handleUserClick}>
               <i className="fas fa-user-circle user-icon"></i>
-              {showUserDropdown && (
-                <div className="user-dropdown">
-                  <div className="dropdown-item" onClick={() => navigate('/admin/profile')}>
-                    <i className="fas fa-user"></i>
-                    Profile
-                  </div>
-                  <div className="dropdown-item" onClick={handleLogout}>
-                    <i className="fas fa-sign-out-alt"></i>
-                    Logout
-                  </div>
-                </div>
-              )}
-            </div> */}
-            
-            <i className="fas fa-user-circle user-icon"></i>
           </div>
         </div>
 
@@ -657,7 +592,6 @@ const AdminDashboard = () => {
               </div>
               <div className="doctor-actions">
                 <button className="view-profile" onClick={() => handleViewProfile(doctor)}>View Profile</button>
-                <button className="schedule" onClick={() => handleSchedule(doctor)}>Schedule</button>
               </div>
             </div>
           ))}
@@ -742,157 +676,11 @@ const AdminDashboard = () => {
                     and are known for their patient-centric approach to healthcare.
                   </p>
                 </div>
-
-                <div className="profile-actions">
-                  <button className="schedule-appointment">
-                    <i className="fas fa-calendar-plus"></i>
-                    Schedule Appointment
-                  </button>
-                  <button className="send-message">
-                    <i className="fas fa-comment-medical"></i>
-                    Send Message
-                  </button>
-                </div>
               </div>
             </div>
           </div>
         )}
-</div>
-        {/* Schedule Modal */}
-        {showScheduleModal && selectedDoctor && (
-          <div className="modal-overlay" onClick={closeScheduleModal}>
-            <div className="modal-content schedule-modal" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Schedule Appointment</h2>
-                <button className="close-button" onClick={closeScheduleModal}>
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-              <div className="modal-body">
-                <div className="schedule-doctor-info">
-                  <div className="profile-image">
-                    <i className="fas fa-user-md"></i>
-                  </div>
-                  <div className="doctor-details">
-                    <h3>{selectedDoctor.name}</h3>
-                    <p>{selectedDoctor.specialization}</p>
-                    <p><i className="fas fa-calendar"></i> Available: {selectedDoctor.availability}</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleScheduleSubmit} className="schedule-form">
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>
-                        <i className="fas fa-calendar"></i>
-                        Preferred Date
-                      </label>
-                      <input
-                        type="date"
-                        name="date"
-                        value={scheduleForm.date}
-                        onChange={handleInputChange}
-                        required
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>
-                        <i className="fas fa-clock"></i>
-                        Preferred Time
-                      </label>
-                      <select
-                        name="time"
-                        value={scheduleForm.time}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select Time</option>
-                        <option value="09:00">09:00 AM</option>
-                        <option value="10:00">10:00 AM</option>
-                        <option value="11:00">11:00 AM</option>
-                        <option value="12:00">12:00 PM</option>
-                        <option value="14:00">02:00 PM</option>
-                        <option value="15:00">03:00 PM</option>
-                        <option value="16:00">04:00 PM</option>
-                        <option value="17:00">05:00 PM</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>
-                        <i className="fas fa-user"></i>
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={scheduleForm.name}
-                        onChange={handleInputChange}
-                        placeholder="Enter your full name"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>
-                        <i className="fas fa-phone"></i>
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={scheduleForm.phone}
-                        onChange={handleInputChange}
-                        placeholder="Enter your phone number"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>
-                      <i className="fas fa-envelope"></i>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={scheduleForm.email}
-                      onChange={handleInputChange}
-                      placeholder="Enter your email address"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>
-                      <i className="fas fa-notes-medical"></i>
-                      Reason for Visit
-                    </label>
-                    <textarea
-                      name="reason"
-                      value={scheduleForm.reason}
-                      onChange={handleInputChange}
-                      placeholder="Briefly describe your reason for visit"
-                      required
-                    ></textarea>
-                  </div>
-
-                  <div className="form-actions">
-                    <button type="button" className="cancel-btn" onClick={closeScheduleModal}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="submit-btn">
-                      Confirm Appointment
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
