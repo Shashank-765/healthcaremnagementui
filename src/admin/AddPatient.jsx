@@ -5,6 +5,9 @@ import logoImage from '../image/logo.png';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import Navbar from '../component/Navbar';
+import Cookies from 'js-cookie';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const AddPatient = () => {
   const navigate = useNavigate();
@@ -13,20 +16,15 @@ const AddPatient = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [patientForm, setPatientForm] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    bloodGroup: '',
-    condition: '',
+    fullName: '',
+    email: '',
+    medicalCondition: '',
     admitDate: '',
-    doctor: '',
-    room: '',
-    contact: '',
-    address: '',
-    emergencyContact: '',
+    medicalDocument: '',
+    roomNumber: '',
+    assignedDoctor: '',
     medicalHistory: '',
-    insuranceInfo: '',
-    profileImage: null
+    insuranceInformation: ''
   });
 
   // Handle window resize
@@ -84,12 +82,90 @@ const AddPatient = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log('Patient Form Submitted:', patientForm);
-    // After successful submission, redirect to patients list
-    navigate('/admin/patients');
+    try {
+      // Get token and user role from cookies
+      const token = Cookies.get('token');
+      const userRole = Cookies.get('userRole');
+      
+      console.log('Current cookies:', {
+        token: Cookies.get('token'),
+        userRole: Cookies.get('userRole'),
+        userId: Cookies.get('userId')
+      });
+      
+      if (!token) {
+        console.error('No token found in cookies');
+        alert('Please login first');
+        navigate('/admin/login');
+        return;
+      }
+
+      if (userRole !== 'admin') {
+        console.error('User is not an admin');
+        alert('Please login as admin first');
+        navigate('/admin/login');
+        return;
+      }
+
+      // Create patient data object matching backend requirements
+      const patientData = {
+        fullName: patientForm.fullName,
+        email: patientForm.email,
+        medicalCondition: patientForm.medicalCondition,
+        admitDate: patientForm.admitDate,
+        medicalDocument: patientForm.medicalDocument,
+        roomNumber: parseInt(patientForm.roomNumber),
+        assignedDoctor: patientForm.assignedDoctor,
+        medicalHistory: patientForm.medicalHistory,
+        insuranceInformation: patientForm.insuranceInformation
+      };
+
+      console.log('Sending patient data:', patientData);
+
+      const response = await fetch(`${API_URL}/patient/addpatient`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(patientData),
+        credentials: 'include' // Important for cookies
+      });
+
+      const data = await response.json();
+      console.log('Server response:', data);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Clear all auth cookies
+          Cookies.remove('token');
+          Cookies.remove('userRole');
+          Cookies.remove('userId');
+          alert('Session expired. Please login again.');
+          navigate('/admin/login');
+          return;
+        }
+        throw new Error(data.message || 'Failed to add patient');
+      }
+
+      console.log('Patient added successfully:', data);
+      alert('Patient added successfully!');
+      navigate('/admin/patients');
+    } catch (error) {
+      console.error('Error adding patient:', error.message);
+      if (error.message.includes('token')) {
+        // Clear all auth cookies
+        Cookies.remove('token');
+        Cookies.remove('userRole');
+        Cookies.remove('userId');
+        alert('Session expired. Please login again.');
+        navigate('/admin/login');
+      } else {
+        alert(error.message || 'Failed to add patient. Please try again.');
+      }
+    }
   };
 
   const menuItems = [
@@ -234,8 +310,8 @@ const AddPatient = () => {
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  value={patientForm.name}
+                  name="fullName"
+                  value={patientForm.fullName}
                   onChange={handleInputChange}
                   placeholder="Enter patient's full name"
                   required
@@ -243,59 +319,17 @@ const AddPatient = () => {
               </div>
               <div className="form-group">
                 <label>
-                  <i className="fas fa-birthday-cake"></i>
-                  Age
+                  <i className="fas fa-envelope"></i>
+                  Email
                 </label>
                 <input
-                  type="number"
-                  name="age"
-                  value={patientForm.age}
+                  type="email"
+                  name="email"
+                  value={patientForm.email}
                   onChange={handleInputChange}
-                  placeholder="Enter age"
+                  placeholder="Enter email address"
                   required
                 />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>
-                  <i className="fas fa-venus-mars"></i>
-                  Gender
-                </label>
-                <select
-                  name="gender"
-                  value={patientForm.gender}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>
-                  <i className="fas fa-tint"></i>
-                  Blood Group
-                </label>
-                <select
-                  name="bloodGroup"
-                  value={patientForm.bloodGroup}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Blood Group</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
               </div>
             </div>
 
@@ -307,8 +341,8 @@ const AddPatient = () => {
                 </label>
                 <input
                   type="text"
-                  name="condition"
-                  value={patientForm.condition}
+                  name="medicalCondition"
+                  value={patientForm.medicalCondition}
                   onChange={handleInputChange}
                   placeholder="Enter medical condition"
                   required
@@ -332,15 +366,15 @@ const AddPatient = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>
-                  <i className="fas fa-user-md"></i>
-                  Assigned Doctor
+                  <i className="fas fa-file-medical"></i>
+                  Medical Document
                 </label>
                 <input
                   type="text"
-                  name="doctor"
-                  value={patientForm.doctor}
+                  name="medicalDocument"
+                  value={patientForm.medicalDocument}
                   onChange={handleInputChange}
-                  placeholder="Enter doctor's name"
+                  placeholder="Enter medical document details"
                   required
                 />
               </div>
@@ -350,9 +384,9 @@ const AddPatient = () => {
                   Room Number
                 </label>
                 <input
-                  type="text"
-                  name="room"
-                  value={patientForm.room}
+                  type="number"
+                  name="roomNumber"
+                  value={patientForm.roomNumber}
                   onChange={handleInputChange}
                   placeholder="Enter room number"
                   required
@@ -363,47 +397,18 @@ const AddPatient = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>
-                  <i className="fas fa-phone"></i>
-                  Contact Number
+                  <i className="fas fa-user-md"></i>
+                  Assigned Doctor
                 </label>
                 <input
-                  type="tel"
-                  name="contact"
-                  value={patientForm.contact}
+                  type="text"
+                  name="assignedDoctor"
+                  value={patientForm.assignedDoctor}
                   onChange={handleInputChange}
-                  placeholder="Enter contact number"
+                  placeholder="Enter doctor's name"
                   required
                 />
               </div>
-              <div className="form-group">
-                <label>
-                  <i className="fas fa-phone-alt"></i>
-                  Emergency Contact
-                </label>
-                <input
-                  type="tel"
-                  name="emergencyContact"
-                  value={patientForm.emergencyContact}
-                  onChange={handleInputChange}
-                  placeholder="Enter emergency contact"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <i className="fas fa-map-marker-alt"></i>
-                Address
-              </label>
-              <input
-                type="text"
-                name="address"
-                value={patientForm.address}
-                onChange={handleInputChange}
-                placeholder="Enter complete address"
-                required
-              />
             </div>
 
             <div className="form-group">
@@ -427,24 +432,11 @@ const AddPatient = () => {
               </label>
               <input
                 type="text"
-                name="insuranceInfo"
-                value={patientForm.insuranceInfo}
+                name="insuranceInformation"
+                value={patientForm.insuranceInformation}
                 onChange={handleInputChange}
                 placeholder="Enter insurance details"
                 required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>
-                <i className="fas fa-image"></i>
-                Profile Image
-              </label>
-              <input
-                type="file"
-                name="profileImage"
-                onChange={handleImageChange}
-                accept="image/*"
               />
             </div>
 

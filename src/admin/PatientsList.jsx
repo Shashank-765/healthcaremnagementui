@@ -23,6 +23,7 @@ const PatientsList = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const handleResize = () => {
@@ -103,45 +104,53 @@ const PatientsList = () => {
     setShowAllPatients(!showAllPatients);
   };
 
-  // Fetch patients data
-  useEffect(() => {
-    fetchPatients();
-  }, []);
-
+  // Fetch patients data with filter
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/patient/allpatientdata`, {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (searchQuery.trim()) {  // Only add if search query is not empty
+        queryParams.append('fullName', searchQuery.trim());
+      }
+
+      const response = await axios.get(`${API_URL}/patient/allpatientdata?${queryParams.toString()}`, {
         headers: {
-          'Content-Type': 'application/json',
-          // Add any auth headers if required
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         }
       });
       
       if (response.data.success) {
         // Map the response data to match your table structure
         const formattedPatients = response.data.data.map(patient => ({
-          // _id: patient._id,
+          _id: patient._id,
           name: patient.fullName,
           email: patient.email,
           admitDate: patient.admitDate,
           condition: patient.medicalCondition,
           room: patient.roomNumber,
           doctor: patient.assignedDoctor,
-          // Add other fields as needed
         }));
         
         setPatients(formattedPatients);
       } else {
         setError(response.data.message || 'Failed to fetch patients data');
       }
-      setLoading(false);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch patients data');
-      setLoading(false);
       console.error('Error fetching patients:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Update useEffect to include search query
+  useEffect(() => {
+    fetchPatients();
+  }, [searchQuery]); // Re-fetch when search query changes
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
   };
 
   // Add handlers for popups
@@ -193,25 +202,6 @@ const PatientsList = () => {
     }
   };
 
-  // Add loading state in the render
-  if (loading) {
-    return (
-      <div className="loading-spinner">
-        <i className="fas fa-spinner fa-spin"></i>
-        Loading patients...
-      </div>
-    );
-  }
-
-  // Add error state in the render
-  if (error) {
-    return (
-      <div className="error-message">
-        <i className="fas fa-exclamation-circle"></i>
-        {error}
-      </div>
-    );
-  }
   return (
     <div className="patients-list-container">
       {/* Sidebar */}
@@ -301,86 +291,93 @@ const PatientsList = () => {
           </div>
         </div>
         <div className="doctor-listss">
-        <div className="patients-header">
-          <div className="header-content">
-            <div className="header-left">
-              <h2 style={{marginLeft:'20px'}}>Hospital patients</h2>
-            </div>
-            <div className="header-right">
-              {/* <div className="department-select">
-                <select>
-                  <option value="">All Departments</option>
-                  <option value="cardiac">Cardiac</option>
-                  <option value="neurology">Neurology</option>
-                  <option value="pediatric">Pediatric</option>
-                </select>
-              </div> */}
-              <div className="search-bar">
-                <input type="text" placeholder="Search patients..." />
+          <div className="patients-header">
+            <div className="header-content">
+              <div className="header-left">
+                <h2 style={{marginLeft:'20px'}}>Hospital patients</h2>
+              </div>
+              <div className="header-right">
+                <div className="search-bar">
+                  <input 
+                    type="text" 
+                    placeholder="Search patients by name..." 
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="patients-table">
-          {patients.length === 0 ? (
-            <div className="no-patients">
-              <i className="fas fa-user-injured"></i>
-              <p>No patients found</p>
-            </div>
-          ) : (
-          <table>
-            <thead>
-              <tr>
-                {/* <th>ID</th> */}
-                <th>Name</th>
-                <th>Email</th>
-                <th>Admit Date</th>
-                <th>Condition</th>
-                <th>Room</th>
-                <th>Doctor</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patients.slice(0, showAllPatients ? patients.length : 3).map(patient => (
-                <tr key={patient._id}>
-                  {/* <td>{patient._id}</td> */}
-                  <td>{patient.name}</td>
-                  <td>{patient.email}</td>
-                  <td>{patient.admitDate}</td>
-                  <td>{patient.condition}</td>
-                  <td>{patient.room}</td>
-                  <td>{patient.doctor}</td>
-                  <td>
-                    <button className="view-btn" onClick={() => handleView(patient)}>
-                      <i className="fas fa-eye"></i>
-                    </button>
-                    <button className="edit-btn" onClick={() => handleEdit(patient)}>
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button className="delete-btn" onClick={() => handleDelete(patient)}>
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          )}
-          {patients.length > 3 && (
-            <div className="view-more-less">
-              <button 
-                className={showAllPatients ? "view-less-btn" : "view-more-btn"}
-                onClick={toggleView}
-              >
-                <i className={`fas fa-chevron-${showAllPatients ? 'up' : 'down'}`}></i>
-                {showAllPatients ? 'View Less' : 'View More'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+        {loading ? (
+          <div className="loading-spinner">
+            <i className="fas fa-spinner fa-spin"></i>
+            Loading patients...
+          </div>
+        ) : error ? (
+          <div className="error-message">
+            <i className="fas fa-exclamation-circle"></i>
+            {error}
+          </div>
+        ) : (
+          <div className="patients-table">
+            {patients.length === 0 ? (
+              <div className="no-patients">
+                <i className="fas fa-user-injured"></i>
+                <p>No patients found</p>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Admit Date</th>
+                    <th>Condition</th>
+                    <th>Room</th>
+                    <th>Doctor</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patients.slice(0, showAllPatients ? patients.length : 3).map(patient => (
+                    <tr key={patient._id}>
+                      <td>{patient.name}</td>
+                      <td>{patient.email}</td>
+                      <td>{patient.admitDate}</td>
+                      <td>{patient.condition}</td>
+                      <td>{patient.room}</td>
+                      <td>{patient.doctor}</td>
+                      <td>
+                        <button className="view-btn" onClick={() => handleView(patient)}>
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button className="edit-btn" onClick={() => handleEdit(patient)}>
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDelete(patient)}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {patients.length > 3 && (
+              <div className="view-more-less">
+                <button 
+                  className={showAllPatients ? "view-less-btn" : "view-more-btn"}
+                  onClick={toggleView}
+                >
+                  <i className={`fas fa-chevron-${showAllPatients ? 'up' : 'down'}`}></i>
+                  {showAllPatients ? 'View Less' : 'View More'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add Popups */}

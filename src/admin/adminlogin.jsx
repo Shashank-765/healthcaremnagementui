@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/adminStyle.css';
 import doctorImage from '../image/registernow.png';
+import Cookies from 'js-cookie';
+
+// Update API URL to match your backend structure
+const API_URL = 'http://localhost:5000/api/v1';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -10,20 +14,104 @@ const AdminLogin = () => {
     password: ''
   });
 
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({
       ...prevState,
       [name]: value
     }));
+    if (error) {
+      setError('');
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically handle login authentication
-    console.log('Login attempted:', formData);
-    // Navigate to admin dashboard after successful login
-    navigate('/admin/admin-dashboard');
+    setError('');
+    setIsLoading(true);
+
+    try {
+      // Validate required fields
+      if (!formData.email || !formData.password) {
+        setError('Email and password are required');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Sending login request to:', `${API_URL}/admin/admin-login`);
+      console.log('Request data:', formData);
+
+      // Make login request
+      const response = await fetch(`${API_URL}/admin/admin-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(formData),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      console.log('Response status:', response.status);
+
+      const data = await response.json();
+      console.log('Login response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Check if token exists in response data
+      if (!data.data || !data.data.token) {
+        console.error('No token in response:', data);
+        throw new Error('No token received from server');
+      }
+
+      // Store the token and user data in cookies
+      Cookies.set('token', data.data.token, { 
+        expires: 30,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      });
+      
+      Cookies.set('userRole', 'admin', {
+        expires: 30,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      });
+      
+      if (data.data._id) {
+        Cookies.set('userId', data.data._id, {
+          expires: 30,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax'
+        });
+      }
+
+      // Verify cookies were set
+      const storedToken = Cookies.get('token');
+      console.log('Stored token:', storedToken);
+
+      if (!storedToken) {
+        throw new Error('Failed to store token');
+      }
+
+      console.log('Login successful, redirecting to dashboard');
+      navigate('/admin/admin-dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.message === 'Failed to fetch') {
+        setError('Unable to connect to server. Please make sure the server is running at http://localhost:5000');
+      } else {
+        setError(error.message || 'Login failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,6 +121,7 @@ const AdminLogin = () => {
         <div className="role-selector">
           <input type="text" value="Admin" readOnly />
         </div>
+        {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <input
@@ -63,7 +152,13 @@ const AdminLogin = () => {
             </label>
             <a href="#" className="forgot-password">Forgot Password?</a>
           </div>
-          <button type="submit" className="login-button">Login</button>
+          <button 
+            type="submit" 
+            className="login-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Logging in...' : 'Login'}
+          </button>
           <div className="signup-prompt">
             Not Registered Yet? <span onClick={() => navigate('/admin/signup')} className="signup-link">Sign-Up</span>
           </div>

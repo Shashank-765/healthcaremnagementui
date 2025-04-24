@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/adminStyle.css';
 import doctorImage from '../image/register5.png'; // Use your patient registration image
-
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const AdminSignup = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -13,7 +13,6 @@ const AdminSignup = () => {
     totalHospital: '',
     totalBeds: '',
     hospitalName: '',
-    doctorsCount: '',
     nursesCount: '',
     receptionistsCount: '',
     otherStaffCount: ''
@@ -80,7 +79,7 @@ const AdminSignup = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate all fields before submission
@@ -97,8 +96,71 @@ const AdminSignup = () => {
       return;
     }
 
-    console.log('Form submitted:', formData);
-    navigate('/admin/login');
+    try {
+      // Prepare the data according to backend requirements
+      const adminData = {
+        fullName: formData.name,
+        email: formData.email,
+        password: formData.password,
+        contactNumber: formData.phone,
+        hospitalName: formData.hospitalName,
+        totalHospitals: parseInt(formData.totalHospital),
+        totalBeds: parseInt(formData.totalBeds),
+        staffInformation: {
+          nurses: parseInt(formData.nursesCount) || 0,
+          receptionists: parseInt(formData.receptionistsCount) || 0,
+          otherStaff: parseInt(formData.otherStaffCount) || 0
+        }
+      };
+
+      console.log('Sending request to:', `${API_URL}/admin/admin-signup`);
+      console.log('Request data:', adminData);
+
+      const response = await fetch(`${API_URL}/admin/admin-signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(adminData)
+      });
+
+      // Log the response status and headers for debugging
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Check if the response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Received non-JSON response:', text);
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle validation errors
+        if (data.errors && Array.isArray(data.errors)) {
+          const errorMessages = data.errors.join('\n');
+          alert(errorMessages);
+          return;
+        }
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Success case
+      console.log('Admin registered successfully:', data);
+      alert('Registration successful! Please login to continue.');
+      navigate('/admin/login');
+    } catch (error) {
+      console.error('Registration error:', error);
+      if (error.message === 'Server returned non-JSON response') {
+        alert('Server error: Please check if the backend server is running and the API endpoint is correct.');
+      } else {
+        alert(error.message || 'Registration failed. Please try again.');
+      }
+    }
   };
 
   return (
@@ -203,17 +265,6 @@ const AdminSignup = () => {
 
             <div className="section">
               <h3>Staff Information</h3>
-              <div className="form-group">
-                <input
-                  type="number"
-                  name="doctorsCount"
-                  value={formData.doctorsCount}
-                  onChange={handleInputChange}
-                  min="0"
-                  placeholder="Number of Doctors"
-                  className="signup-input"
-                />
-              </div>
               <div className="form-group">
                 <input
                   type="number"

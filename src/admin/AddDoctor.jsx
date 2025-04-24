@@ -4,6 +4,9 @@ import './AddDoctor.css';
 import logoImage from '../image/logo.png';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
+import Cookies from 'js-cookie';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const AddDoctor = () => {
   const navigate = useNavigate();
@@ -91,15 +94,15 @@ const AddDoctor = () => {
   };
 
   const [doctorForm, setDoctorForm] = useState({
-    name: '',
+    fullName: '',
     specialization: '',
     experience: '',
     availability: '',
-    contact: '',
+    contactnumber: '',
     email: '',
     password: '',
-    address: '',
     qualification: '',
+    address: '',
     bio: '',
     profileImage: null
   });
@@ -120,12 +123,87 @@ const AddDoctor = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log('Doctor Form Submitted:', doctorForm);
-    // After successful submission, redirect to doctors list
-    navigate('/admin/doctors');
+    try {
+      // Get token and user role from cookies
+      const token = Cookies.get('token');
+      const userRole = Cookies.get('userRole');
+      
+      if (!token) {
+        console.error('No token found in cookies');
+        alert('Please login first');
+        navigate('/admin/login');
+        return;
+      }
+
+      if (userRole !== 'admin') {
+        console.error('User is not an admin');
+        alert('Please login as admin first');
+        navigate('/admin/login');
+        return;
+      }
+
+      // Create FormData object for file upload
+      const formData = new FormData();
+      formData.append('fullName', doctorForm.fullName);
+      formData.append('specialization', doctorForm.specialization);
+      formData.append('experience', doctorForm.experience);
+      formData.append('availability', doctorForm.availability);
+      formData.append('contactnumber', doctorForm.contactnumber);
+      formData.append('email', doctorForm.email);
+      formData.append('password', doctorForm.password);
+      formData.append('qualification', doctorForm.qualification);
+      formData.append('address', doctorForm.address);
+      formData.append('bio', doctorForm.bio);
+      
+      if (doctorForm.profileImage) {
+        formData.append('profileimage', doctorForm.profileImage);
+      }
+
+      console.log('Sending doctor data:', Object.fromEntries(formData));
+
+      const response = await fetch(`${API_URL}/doctor/adddoctor`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      console.log('Server response:', data);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Clear all auth cookies
+          Cookies.remove('token');
+          Cookies.remove('userRole');
+          Cookies.remove('userId');
+          alert('Session expired. Please login again.');
+          navigate('/admin/login');
+          return;
+        }
+        throw new Error(data.message || 'Failed to add doctor');
+      }
+
+      console.log('Doctor added successfully:', data);
+      alert('Doctor added successfully!');
+      navigate('/admin/doctors');
+    } catch (error) {
+      console.error('Error adding doctor:', error.message);
+      if (error.message.includes('token')) {
+        // Clear all auth cookies
+        Cookies.remove('token');
+        Cookies.remove('userRole');
+        Cookies.remove('userId');
+        alert('Session expired. Please login again.');
+        navigate('/admin/login');
+      } else {
+        alert(error.message || 'Failed to add doctor. Please try again.');
+      }
+    }
   };
 
   return (
@@ -235,8 +313,8 @@ const AddDoctor = () => {
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  value={doctorForm.name}
+                  name="fullName"
+                  value={doctorForm.fullName}
                   onChange={handleInputChange}
                   placeholder="Enter doctor's full name"
                   required
@@ -303,8 +381,8 @@ const AddDoctor = () => {
                 </label>
                 <input
                   type="tel"
-                  name="contact"
-                  value={doctorForm.contact}
+                  name="contactnumber"
+                  value={doctorForm.contactnumber}
                   onChange={handleInputChange}
                   placeholder="Enter contact number"
                   required

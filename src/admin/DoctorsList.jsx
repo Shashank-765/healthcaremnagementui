@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './DoctorsList.css';
 import logoImage from '../image/logo.png';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import Navbar from '../component/Navbar';
+import Cookies from 'js-cookie';
+
+const API_URL = 'http://localhost:5000/api/v1';
 
 const DoctorsList = () => {
   const navigate = useNavigate();
@@ -20,6 +24,9 @@ const DoctorsList = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [scheduleForm, setScheduleForm] = useState({
     date: '',
     time: '',
@@ -28,6 +35,48 @@ const DoctorsList = () => {
     phone: '',
     reason: ''
   });
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
+
+  // Fetch doctors data with filters
+  const fetchDoctors = async () => {
+    try {
+      const token = Cookies.get('token');
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (searchQuery) {
+        queryParams.append('fullName', searchQuery);
+      }
+      if (selectedSpecialization) {
+        queryParams.append('specialization', selectedSpecialization);
+      }
+
+      const response = await axios.get(`${API_URL}/doctor/readdoctors?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data) {
+        setDoctors(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      setError('Failed to load doctors data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update useEffect to include filters
+  useEffect(() => {
+    fetchDoctors();
+  }, [searchQuery, selectedSpecialization]); // Re-fetch when filters change
 
   // Handle window resize
   useEffect(() => {
@@ -115,50 +164,6 @@ const DoctorsList = () => {
     navigate('/');
   };
 
-  // Mock data for doctors
-  const doctors = [
-    {
-      id: 1,
-      name: "Dr. Sarah Johnson",
-      specialization: "Cardiologist",
-      experience: "10 years",
-      availability: "Mon-Fri",
-      contact: "+1234567890",
-      email: "sarah.j@hospital.com",
-      image: "https://example.com/doctor1.jpg"
-    },
-    {
-      id: 2,
-      name: "Dr. Michael Chen",
-      specialization: "Neurologist",
-      experience: "15 years",
-      availability: "Tue-Sat",
-      contact: "+1234567891",
-      email: "michael.c@hospital.com",
-      image: "https://example.com/doctor2.jpg"
-    },
-    {
-      id: 3,
-      name: "Dr. Emily Brown",
-      specialization: "Pediatrician",
-      experience: "8 years",
-      availability: "Mon-Sat",
-      contact: "+1234567892",
-      email: "emily.b@hospital.com",
-      image: "https://example.com/doctor3.jpg"
-    },
-    {
-      id: 4,
-      name: "Dr. dmily Brown",
-      specialization: "Pediatrician",
-      experience: "3 years",
-      availability: "Mon-Sat",
-      contact: "+1234567892",
-      email: "dmily.b@hospital.com",
-      image: "https://example.com/doctor3.jpg"
-    }
-  ];
-
   const handleViewProfile = (doctor) => {
     setSelectedDoctor(doctor);
     setShowModal(true);
@@ -226,25 +231,100 @@ const DoctorsList = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically update the doctor data in your backend
-    console.log('Updated Doctor Data:', selectedDoctor);
-    setShowEditPopup(false);
-    // Redirect back to doctors list
-    navigate('/admin/doctors');
+    try {
+      const token = Cookies.get('token');
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      // Create FormData object to handle file upload
+      const formData = new FormData();
+      formData.append('fullName', selectedDoctor.fullName);
+      formData.append('specialization', selectedDoctor.specialization);
+      formData.append('experience', selectedDoctor.experience);
+      formData.append('availability', selectedDoctor.availability);
+      formData.append('contactnumber', selectedDoctor.contactnumber);
+      formData.append('email', selectedDoctor.email);
+      
+      // Append profile image if it exists
+      if (selectedDoctor.profileImage) {
+        formData.append('profileimage', selectedDoctor.profileImage);
+      }
+
+      const response = await axios.put(
+        `${API_URL}/doctor/updatedoctors/${selectedDoctor.email}`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Update the doctor in the state
+        setDoctors(doctors.map(doctor => 
+          doctor.email === selectedDoctor.email ? selectedDoctor : doctor
+        ));
+        setShowEditPopup(false);
+        // You can add a success message here if you want
+      } else {
+        setError('Failed to update doctor');
+      }
+    } catch (error) {
+      console.error('Error updating doctor:', error);
+      setError('Failed to update doctor');
+    }
   };
 
-  const handleDeleteConfirm = () => {
-    // Here you would typically delete the doctor from your backend
-    console.log('Deleting Doctor:', selectedDoctor);
-    setShowDeletePopup(false);
+  // Update the file input handler
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedDoctor(prev => ({
+        ...prev,
+        profileImage: file
+      }));
+    }
   };
 
-  // Filter doctors based on search query and specialization
-  const filteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSpecialization = selectedSpecialization === '' || doctor.specialization === selectedSpecialization;
-    return matchesSearch && matchesSpecialization;
-  });
+  const handleDeleteConfirm = async () => {
+    try {
+      const token = Cookies.get('token');
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      const response = await axios.delete(`${API_URL}/doctor/deletedoctors/${selectedDoctor.email}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        // Remove the deleted doctor from the state
+        setDoctors(doctors.filter(doctor => doctor.email !== selectedDoctor.email));
+        setShowDeletePopup(false);
+        // You can add a success message here if you want
+      } else {
+        setError('Failed to delete doctor');
+      }
+    } catch (error) {
+      console.error('Error deleting doctor:', error);
+      setError('Failed to delete doctor');
+    }
+  };
+
+  // Remove the local filtering since we're now using API filtering
+  const filteredDoctors = doctors;
+
+  const toggleView = () => {
+    setShowAllDoctors(!showAllDoctors);
+  };
 
   return (
     <div className="doctors-list-container">
@@ -338,82 +418,102 @@ const DoctorsList = () => {
             <h1>YOUR HEALTH IS<br />OUR PRIORITY</h1>
           </div>
         </div>
-<div className="doctor-listss">
-        <div className="doctors-header">
-          <div className="header-content">
-            <div className="header-left">
-              <h2>Hospital Doctors</h2>
-            </div>
-            <div className="header-right">
-              <div className="department-select">
-                <select value={selectedSpecialization} onChange={handleSpecializationChange}>
-                  <option value="">All Specializations</option>
-                  <option value="Cardiologist">Cardiologist</option>
-                  <option value="Neurologist">Neurologist</option>
-                  <option value="Pediatrician">Pediatrician</option>
-                  <option value="Dermatologist">Dermatologist</option>
-                  <option value="Orthopedic">Orthopedic</option>
-                  <option value="Gynecologist">Gynecologist</option>
-                </select>
+
+        <div className="doctor-listss">
+          <div className="doctors-header">
+            <div className="header-content">
+              <div className="header-left">
+                <h2>Hospital Doctors</h2>
               </div>
-              <div className="search-bar">
-                <input 
-                  type="text" 
-                  placeholder="Search doctors..." 
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                />
+              <div className="header-right">
+                <div className="department-select">
+                  <select value={selectedSpecialization} onChange={handleSpecializationChange}>
+                    <option value="">All Specializations</option>
+                    <option value="Cardiologist">Cardiologist</option>
+                    <option value="Neurologist">Neurologist</option>
+                    <option value="Pediatrician">Pediatrician</option>
+                    <option value="Dermatologist">Dermatologist</option>
+                    <option value="Orthopedic">Orthopedic</option>
+                    <option value="Gynecologist">Gynecologist</option>
+                  </select>
+                </div>
+                <div className="search-bar">
+                  <input 
+                    type="text" 
+                    placeholder="Search doctors..." 
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-        </div>
 
-        <div className="doctors-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Full Name</th>
-                <th>Specialization</th>
-                <th>Experience</th>
-                <th>Availability</th>
-                <th>Contact Number</th>
-                <th>Email</th>
-                <th>Qualification</th>
-                <th>Address</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDoctors.map(doctor => (
-                <tr key={doctor.id}>
-                  <td>{doctor.name}</td>
-                  <td>{doctor.specialization}</td>
-                  <td>{doctor.experience}</td>
-                  <td>{doctor.availability}</td>
-                  <td>{doctor.contact}</td>
-                  <td>{doctor.email}</td>
-                  <td>{doctor.qualification || 'MBBS, MD'}</td>
-                  <td>{doctor.address || 'Not Specified'}</td>
-                  <td className="action-buttons">
-                    <button className="view-btn" onClick={() => handleView(doctor)}>
-                      <i className="fas fa-eye"></i>
-                    </button>
-                    <button className="edit-btn" onClick={() => handleEdit(doctor)}>
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button className="delete-btn" onClick={() => handleDelete(doctor)}>
-                      <i className="fas fa-trash"></i>
-                    </button>
-                    <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
-                      <i className="fas fa-calendar-plus"></i>
-                    </button>
-                  </td>
+        {loading ? (
+          <div className="loading-spinner">
+            <i className="fas fa-spinner fa-spin"></i>
+            Loading doctors...
+          </div>
+        ) : error ? (
+          <div className="error-message">
+            <i className="fas fa-exclamation-circle"></i>
+            {error}
+          </div>
+        ) : (
+          <div className="doctors-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Specialization</th>
+                  <th>Experience</th>
+                  <th>Availability</th>
+                  <th>Contact Number</th>
+                  <th>Email</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredDoctors.slice(0, showAllDoctors ? filteredDoctors.length : 3).map(doctor => (
+                  <tr key={doctor._id}>
+                    <td>{doctor.fullName}</td>
+                    <td>{doctor.specialization}</td>
+                    <td>{doctor.experience}</td>
+                    <td>{doctor.availability || 'Not specified'}</td>
+                    <td>{doctor.contactnumber || 'Not specified'}</td>
+                    <td>{doctor.email || 'Not specified'}</td>
+                    <td className="action-buttons">
+                      <button className="view-btn" onClick={() => handleView(doctor)}>
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      <button className="edit-btn" onClick={() => handleEdit(doctor)}>
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button className="delete-btn" onClick={() => handleDelete(doctor)}>
+                        <i className="fas fa-trash"></i>
+                      </button>
+                      <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
+                        <i className="fas fa-calendar-plus"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredDoctors.length > 3 && (
+              <div className="view-more-less">
+                <button 
+                  className={showAllDoctors ? "view-less-btn" : "view-more-btn"}
+                  onClick={toggleView}
+                >
+                  <i className={`fas fa-chevron-${showAllDoctors ? 'up' : 'down'}`}></i>
+                  {showAllDoctors ? 'View Less' : 'View More'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* View Modal */}
         {showViewPopup && selectedDoctor && (
@@ -435,16 +535,13 @@ const DoctorsList = () => {
                     )}
                   </div>
                   <div className="doctor-details">
-                    <p><strong>Full Name:</strong> {selectedDoctor.name}</p>
+                    <p><strong>Full Name:</strong> {selectedDoctor.fullName}</p>
                     <p><strong>Specialization:</strong> {selectedDoctor.specialization}</p>
                     <p><strong>Experience:</strong> {selectedDoctor.experience}</p>
                     <p><strong>Availability:</strong> {selectedDoctor.availability}</p>
-                    <p><strong>Contact Number:</strong> {selectedDoctor.contact}</p>
+                    <p><strong>Contact Number:</strong> {selectedDoctor.contactnumber}</p>
                     <p><strong>Email:</strong> {selectedDoctor.email}</p>
-                    <p><strong>Qualification:</strong> {selectedDoctor.qualification || 'MBBS, MD'}</p>
-                    <p><strong>Address:</strong> {selectedDoctor.address || 'Not Specified'}</p>
-                    <p><strong>Bio:</strong> {selectedDoctor.bio || 'No bio available'}</p>
-                  </div>
+                   </div>
                 </div>
               </div>
             </div>
@@ -467,7 +564,7 @@ const DoctorsList = () => {
                     <label>Full Name:</label>
                     <input
                       type="text"
-                      value={selectedDoctor.name}
+                      value={selectedDoctor.fullName}
                       onChange={(e) => setSelectedDoctor({...selectedDoctor, name: e.target.value})}
                       required
                     />
@@ -510,7 +607,7 @@ const DoctorsList = () => {
                     <label>Contact Number:</label>
                     <input
                       type="tel"
-                      value={selectedDoctor.contact}
+                      value={selectedDoctor.contactnumber}
                       onChange={(e) => setSelectedDoctor({...selectedDoctor, contact: e.target.value})}
                       required
                     />
@@ -525,44 +622,11 @@ const DoctorsList = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Qualification:</label>
-                    <input
-                      type="text"
-                      value={selectedDoctor.qualification || ''}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, qualification: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Address:</label>
-                    <textarea
-                      value={selectedDoctor.address || ''}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, address: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Bio:</label>
-                    <textarea
-                      value={selectedDoctor.bio || ''}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, bio: e.target.value})}
-                    />
-                  </div>
-                  <div className="form-group">
                     <label>Profile Image:</label>
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setSelectedDoctor({...selectedDoctor, profileImage: reader.result});
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
+                      onChange={handleFileChange}
                     />
                   </div>
                   <div className="popup-footer">
@@ -586,7 +650,7 @@ const DoctorsList = () => {
                 </button>
               </div>
               <div className="popup-body">
-                <p>Are you sure you want to delete Dr. {selectedDoctor.name}?</p>
+                <p>Are you sure you want to delete Dr. {selectedDoctor.fullName}?</p>
                 <div className="popup-footer">
                   <button className="delete-confirm-btn" onClick={handleDeleteConfirm}>Delete</button>
                   <button className="cancel-btn" onClick={() => setShowDeletePopup(false)}>Cancel</button>
