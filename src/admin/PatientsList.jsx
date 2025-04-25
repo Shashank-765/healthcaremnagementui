@@ -397,10 +397,6 @@ const PatientsList = () => {
                 <p><strong>Admit Date:</strong> {selectedPatient.admitDate}</p>
                 <p><strong>Doctor:</strong> {selectedPatient.doctor}</p>
                 <p><strong>Room:</strong> {selectedPatient.room}</p>
-                {/* <p><strong>Age:</strong>{selectedPatient.age}</p> */}
-                {/* <p><strong>Gender:</strong> {selectedPatient.gender}</p> */}
-                {/* <p><strong>Blood Group:</strong> {selectedPatient.bloodGroup}</p> */}
-                {/* <p><strong>Contact:</strong> {selectedPatient.contact}</p> */}
               </div>
             </div>
           </div>

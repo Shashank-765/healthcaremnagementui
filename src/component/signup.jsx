@@ -1,14 +1,19 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addUser } from "../services/authValidation";
+import axios from "axios";
 import "./styles.css";
 import easyCareLogo from '../image/registernow.png';
 import logoImage2 from '../image/signupforpatientimage.jpg';
 import register5 from '../image/register5.png';
 
+const API_URL = 'http://localhost:5000/api/v1';
+
 const Signup = () => {
   const navigate = useNavigate();
   const [userType, setUserType] = useState("patient");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
+  
   const [formData, setFormData] = useState({
     // Common fields
     fullName: "",
@@ -94,18 +99,36 @@ const Signup = () => {
     return "";
   };
 
+  const validatePatientFields = () => {
+    const requiredFields = {
+      phoneNumber: formData.contactNumber,
+      emergencyContactNumber: formData.emergencyContact,
+      knownAllergies: formData.allergies,
+      bloodGroup: formData.bloodGroup
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      setApiError(`Missing required fields: ${missingFields.join(', ')}`);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
     if (name === "contactNumber" || name === "emergencyContact") {
-      // Only allow numbers and limit to 10 digits
       const numbersOnly = value.replace(/[^\d]/g, '').slice(0, 10);
       setFormData(prevState => ({
         ...prevState,
         [name]: numbersOnly
       }));
       
-      // Validate and set error
       const error = validatePhoneNumber(numbersOnly);
       setErrors(prevErrors => ({
         ...prevErrors,
@@ -132,28 +155,24 @@ const Signup = () => {
         [name]: error
       }));
     } else if (name === "licenseNumber") {
-      // Only allow numbers and limit to 10 digits
       const numbersOnly = value.replace(/[^\d]/g, '').slice(0, 10);
       setFormData(prevState => ({
         ...prevState,
         [name]: numbersOnly
       }));
       
-      // Validate and set error
       const error = validateLicenseNumber(numbersOnly);
       setErrors(prevErrors => ({
         ...prevErrors,
         [name]: error
       }));
     } else if (name === "experience") {
-      // Only allow numbers and limit to 2 digits instead of 3
       const numbersOnly = value.replace(/[^\d]/g, '').slice(0, 2);
       setFormData(prevState => ({
         ...prevState,
         [name]: numbersOnly
       }));
       
-      // Validate and set error
       const error = validateExperience(numbersOnly);
       setErrors(prevErrors => ({
         ...prevErrors,
@@ -182,47 +201,174 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate all required fields
-    const contactError = validatePhoneNumber(formData.contactNumber);
-    const emergencyError = formData.emergencyContact ? validatePhoneNumber(formData.emergencyContact) : "";
-    const emailError = validateEmail(formData.email);
-    const passwordError = validatePassword(formData.password);
-    const licenseError = userType === "doctor" ? validateLicenseNumber(formData.licenseNumber) : "";
-    const experienceError = userType === "doctor" ? validateExperience(formData.experience) : "";
-    
-    setErrors({
-      contactNumber: contactError,
-      emergencyContact: emergencyError,
-      email: emailError,
-      password: passwordError,
-      licenseNumber: licenseError,
-      experience: experienceError
-    });
+    setIsSubmitting(true);
+    setApiError("");
 
-    if (contactError || emergencyError || emailError || passwordError || licenseError || experienceError) {
-      return;
-    }
+    try {
+      // Add validation for required patient fields
+      if (userType === "patient") {
+        if (!formData.bloodGroup) {
+          setApiError("Blood Group is required");
+          setIsSubmitting(false);
+          return;
+        }
+        if (!formData.emergencyContact) {
+          setApiError("Emergency Contact Number is required");
+          setIsSubmitting(false);
+          return;
+        }
+        if (!formData.allergies) {
+          setApiError("Known Allergies information is required");
+          setIsSubmitting(false);
+          return;
+        }
+      }
 
-    // Add user to mock database
-    const result = addUser(formData.email, formData.password, userType);
-    if (!result.success) {
-      setErrors(prevErrors => ({
-        ...prevErrors,
-        email: result.message
-      }));
-      return;
+      // Validate all required fields
+      const contactError = validatePhoneNumber(formData.contactNumber);
+      const emergencyError = formData.emergencyContact ? validatePhoneNumber(formData.emergencyContact) : "";
+      const emailError = validateEmail(formData.email);
+      const passwordError = validatePassword(formData.password);
+      const licenseError = userType === "doctor" ? validateLicenseNumber(formData.licenseNumber) : "";
+      const experienceError = userType === "doctor" ? validateExperience(formData.experience) : "";
+      
+      setErrors({
+        contactNumber: contactError,
+        emergencyContact: emergencyError,
+        email: emailError,
+        password: passwordError,
+        licenseNumber: licenseError,
+        experience: experienceError
+      });
+
+      if (contactError || emergencyError || emailError || passwordError || licenseError || experienceError) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (userType === "patient" && !validatePatientFields()) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Create FormData object
+      const formDataToSend = new FormData();
+
+      if (userType === "doctor") {
+        // Doctor signup data
+        const doctorData = {
+          fullName: formData.fullName,
+          gender: formData.gender,
+          dateOfBirth: formData.dob,
+          email: formData.email,
+          password: formData.password,
+          contactNumber: formData.contactNumber,
+          specialization: formData.specialization,
+          medicalLicenseNumber: formData.licenseNumber,
+          yearsOfExperience: formData.experience,
+          hospitalClinicName: formData.hospital
+        };
+
+        // Append all doctor data
+        Object.keys(doctorData).forEach(key => {
+          formDataToSend.append(key, doctorData[key]);
+        });
+
+        if (formData.profilePhoto) {
+          formDataToSend.append('medicalDocument', formData.profilePhoto);
+        }
+
+        // Doctor signup API call
+        const response = await axios.post(
+          `${API_URL}/doctor/doctorsignup`,
+          formDataToSend,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        if (response.data.success) {
+          alert("Doctor registration successful! Please login to continue.");
+          navigate('/', { replace: true });
+        }
+
+      } else {
+        // Patient signup data
+        const patientData = {
+          fullName: formData.fullName,
+          gender: formData.gender,
+          dateOfBirth: formData.dob,
+          age: formData.age,
+          email: formData.email,
+          password: formData.password,
+          phoneNumber: formData.contactNumber,
+          bloodGroup: formData.bloodGroup,
+          emergencyContactNumber: formData.emergencyContact,
+          knownAllergies: formData.allergies,
+          currentMedication: formData.medication,
+          medicalHistory: formData.medicalHistory
+        };
+
+        // Append all patient data
+        Object.keys(patientData).forEach(key => {
+          formDataToSend.append(key, patientData[key] || '');
+        });
+
+        if (formData.profilePhoto) {
+          formDataToSend.append('medicalDocument', formData.profilePhoto);
+        }
+
+        // Add console log to verify data being sent
+        console.log('Patient Data being sent:');
+        for (let pair of formDataToSend.entries()) {
+          console.log(pair[0] + ': ' + pair[1]);
+        }
+
+        // Patient signup API call
+        const response = await axios.post(
+          `${API_URL}/patient/signup`,
+          formDataToSend,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        if (response.data.success) {
+          alert("Patient registration successful! Please login to continue.");
+          navigate('/', { replace: true });
+        }
+      }
+
+    } catch (error) {
+      console.log("Registration error:", error.message);
+      
+      if (error.response) {
+        const errorMessage = error.response.data.message;
+        
+        if (errorMessage.includes("Email already exists")) {
+          setErrors(prev => ({
+            ...prev,
+            email: "This email is already registered"
+          }));
+        } else if (errorMessage.includes("Missing required fields")) {
+          setApiError("Please fill all required fields");
+        } else if (error.response.status === 413) {
+          setApiError("File size too large. Please upload a smaller file.");
+        } else {
+          setApiError(errorMessage || "Registration failed. Please try again.");
+        }
+      } else if (error.request) {
+        setApiError("Network error. Please check your internet connection.");
+      } else {
+        setApiError("Registration failed. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    console.log("Form Submitted", formData);
-    
-    // Show success message
-    alert("Registration successful! Please login to continue.");
-    
-    // Navigate to home page with a slight delay to ensure the alert is shown
-    setTimeout(() => {
-      navigate('/', { replace: true });
-    }, 100);
   };
 
   const handleBackToLogin = (e) => {
@@ -250,6 +396,12 @@ const Signup = () => {
             </button>
           </div>
           
+          {apiError && (
+            <div className="api-error-message">
+              {apiError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             {/* Common Fields */}
             <div className="form-section">
@@ -435,13 +587,24 @@ const Signup = () => {
             )}
 
             <div className="button-group">
-              <button type="submit" className="submit-button">
-                {userType === "patient" ? "Register as Patient" : "Register as Doctor"}
+              <button 
+                type="submit" 
+                className="submit-button"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <span>
+                    <i className="fas fa-spinner fa-spin"></i> Registering...
+                  </span>
+                ) : (
+                  userType === "patient" ? "Register as Patient" : "Register as Doctor"
+                )}
               </button>
               <button 
                 type="button" 
                 onClick={handleBackToLogin} 
                 className="back-button"
+                disabled={isSubmitting}
               >
                 Back to Login
               </button>
