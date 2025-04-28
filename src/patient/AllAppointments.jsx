@@ -6,45 +6,111 @@ import Navbar from '../component/Navbar';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
 const AllAppointments = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showAllAppointments, setShowAllAppointments] = useState(false);
+  const [appointments, setAppointments] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Initial dummy data for appointments
-  const initialAppointments = [
-    { id: 1, doctor: "Dr. Sarah Johnson", department: "Cardiology", date: "2024-02-25", time: "10:00 AM", status: "Confirmed" },
-    { id: 2, doctor: "Dr. Michael Chen", department: "Neurology", date: "2024-03-01", time: "2:30 PM", status: "Pending" },
-    { id: 3, doctor: "Dr. Emily Brown", department: "Orthopedics", date: "2024-03-05", time: "11:15 AM", status: "Confirmed" }
-  ];
+  // Fetch appointments when component mounts
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
 
-  // Additional dummy data for expanded view
-  const additionalAppointments = [
-    { id: 4, doctor: "Dr. Robert Wilson", department: "Cardiology", date: "2024-03-10", time: "09:00 AM", status: "Confirmed" },
-    { id: 5, doctor: "Dr. Lisa Anderson", department: "Neurology", date: "2024-03-15", time: "03:30 PM", status: "Confirmed" }
-  ];
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      console.log('User Data from localStorage:', userData);
 
-  const allAppointments = showAllAppointments 
-    ? [...initialAppointments, ...additionalAppointments]
-    : initialAppointments;
+      if (!userData) {
+        setError('Please login to view appointments');
+        setLoading(false);
+        return;
+      }
+
+      const token = userData.token;
+      console.log('Token:', token);
+
+      if (!token) {
+        setError('Authentication token missing');
+        setLoading(false);
+        return;
+      }
+
+      // Get patient email from user data
+      const patientEmail = userData.email;
+      console.log('Patient Email:', patientEmail);
+
+      if (!patientEmail) {
+        console.log('User Data Structure:', userData);
+        setError('Patient email not found in user data');
+        setLoading(false);
+        return;
+      }
+
+      // Encode the email for the URL
+      const encodedEmail = encodeURIComponent(patientEmail);
+      console.log('Encoded Email:', encodedEmail);
+
+      // Log the complete request details
+      const requestUrl = `${API_URL}/appointment/patient?patientEmail=${encodedEmail}`;
+      console.log('Making request to:', requestUrl);
+      console.log('Request headers:', {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      });
+
+      const response = await fetch(requestUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.status === 401) {
+        const errorData = await response.json();
+        console.log('Error response:', errorData);
+        setError('Session expired. Please login again.');
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (data.success) {
+        setAppointments(data.data);
+      } else {
+        setError(data.message || 'Failed to fetch appointments');
+      }
+    } catch (error) {
+      console.error('Error details:', error);
+      setError('Error fetching appointments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter appointments based on search query
-  const filteredAppointments = allAppointments.filter(appointment =>
-    appointment.doctor.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAppointments = appointments.filter(appointment =>
+    appointment.doctorId?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleLogout = () => {
     navigate('/');
-  };
-
-  const handleViewAllClick = () => {
-    setShowAllAppointments(!showAllAppointments);
   };
 
   const handleView = (appointment) => {
@@ -58,22 +124,69 @@ const AllAppointments = () => {
     setShowEditModal(true);
   };
 
-  const handleDelete = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowDeleteModal(true);
+  const handleDelete = async (appointment) => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const token = userData.token;
+      if (!token) {
+        setError('Please login to delete appointments');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/appointment/delete-appointment/id/${appointment._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        fetchAppointments();
+        setShowDeleteModal(false);
+      } else {
+        setError(data.message || 'Failed to delete appointment');
+      }
+    } catch (error) {
+      setError('Error deleting appointment. Please try again.');
+      console.error('Error:', error);
+    }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    // Handle edit submission here
-    console.log('Edited appointment:', editFormData);
-    setShowEditModal(false);
-  };
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to update appointments');
+        return;
+      }
 
-  const handleDeleteConfirm = () => {
-    // Handle delete confirmation here
-    console.log('Deleted appointment:', selectedAppointment);
-    setShowDeleteModal(false);
+      const response = await fetch(`${API_URL}/appointment/update-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          patientName: editFormData.patientId.fullName,
+          doctorName: editFormData.doctorId.fullName,
+          status: editFormData.status
+        })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh appointments list
+        fetchAppointments();
+    setShowEditModal(false);
+      } else {
+        setError(data.message || 'Failed to update appointment');
+      }
+    } catch (error) {
+      setError('Error updating appointment. Please try again.');
+      console.error('Error:', error);
+    }
   };
 
   const toggleSidebar = () => {
@@ -141,11 +254,14 @@ const AllAppointments = () => {
             </div>
           </div>
           <div className="card-content">
+            {error && <div className="error-message">{error}</div>}
+            {loading ? (
+              <div className="loading">Loading appointments...</div>
+            ) : (
             <table className="appointments-table">
               <thead>
                 <tr>
                   <th>Doctor</th>
-                  <th>Department</th>
                   <th>Date</th>
                   <th>Time</th>
                   <th>Status</th>
@@ -154,13 +270,12 @@ const AllAppointments = () => {
               </thead>
               <tbody>
                 {filteredAppointments.map(appointment => (
-                  <tr key={appointment.id}>
-                    <td>{appointment.doctor}</td>
-                    <td>{appointment.department}</td>
-                    <td>{appointment.date}</td>
-                    <td>{appointment.time}</td>
+                    <tr key={appointment._id}>
+                      <td>Dr. {appointment.doctorId?.fullName}</td>
+                      <td>{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
+                      <td>{appointment.appointmentTime}</td>
                     <td>
-                      <span className={`status-badge ${appointment.status.toLowerCase()}`}>
+                        <span className={`status-badge ${appointment.status?.toLowerCase()}`}>
                         {appointment.status}
                       </span>
                     </td>
@@ -172,14 +287,8 @@ const AllAppointments = () => {
                         <i className="fas fa-eye"></i>
                       </button>
                       <button 
-                        className="action-btn edit"
-                        onClick={() => handleEdit(appointment)}
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button 
                         className="action-btn delete"
-                        onClick={() => handleDelete(appointment)}
+                        onClick={() => { setSelectedAppointment(appointment); setShowDeleteModal(true); }}
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -188,12 +297,7 @@ const AllAppointments = () => {
                 ))}
               </tbody>
             </table>
-            <div className="view-more-container">
-              <div className="view-more-link" onClick={handleViewAllClick}>
-                {showAllAppointments ? 'Show Less' : 'View All Appointments'}
-                <i className={`fas fa-arrow-${showAllAppointments ? 'up' : 'right'}`}></i>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -210,81 +314,16 @@ const AllAppointments = () => {
             </div>
             <div className="modal-body">
               <div className="appointment-details">
-                <p><strong>Doctor:</strong> {selectedAppointment.doctor}</p>
-                <p><strong>Department:</strong> {selectedAppointment.department}</p>
-                <p><strong>Date:</strong> {selectedAppointment.date}</p>
-                <p><strong>Time:</strong> {selectedAppointment.time}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName}</p>
+                <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
+                <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
                 <p><strong>Status:</strong> 
-                  <span className={`status-badge ${selectedAppointment.status.toLowerCase()}`}>
+                  <span className={`status-badge ${selectedAppointment.status?.toLowerCase()}`}>
                     {selectedAppointment.status}
                   </span>
                 </p>
+                <p><strong>Reason:</strong> {selectedAppointment.reason}</p>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && selectedAppointment && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Edit Appointment</h3>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="modal-body">
-              <form onSubmit={handleEditSubmit} className="edit-form">
-                <div className="form-group">
-                  <label>Doctor</label>
-                  <select 
-                    value={editFormData.doctor}
-                    onChange={(e) => setEditFormData({...editFormData, doctor: e.target.value})}
-                  >
-                    <option value="Dr. Sarah Johnson">Dr. Sarah Johnson</option>
-                    <option value="Dr. Michael Chen">Dr. Michael Chen</option>
-                    <option value="Dr. Emily Brown">Dr. Emily Brown</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Department</label>
-                  <select 
-                    value={editFormData.department}
-                    onChange={(e) => setEditFormData({...editFormData, department: e.target.value})}
-                  >
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Neurology">Neurology</option>
-                    <option value="Orthopedics">Orthopedics</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Date</label>
-                  <input 
-                    type="date" 
-                    value={editFormData.date}
-                    onChange={(e) => setEditFormData({...editFormData, date: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Time</label>
-                  <select 
-                    value={editFormData.time}
-                    onChange={(e) => setEditFormData({...editFormData, time: e.target.value})}
-                  >
-                    <option value="09:00 AM">09:00 AM</option>
-                    <option value="10:00 AM">10:00 AM</option>
-                    <option value="11:00 AM">11:00 AM</option>
-                    <option value="02:00 PM">02:00 PM</option>
-                    <option value="03:00 PM">03:00 PM</option>
-                  </select>
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="save-btn">Save Changes</button>
-                  <button type="button" className="cancel-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
-                </div>
-              </form>
             </div>
           </div>
         </div>
@@ -303,12 +342,12 @@ const AllAppointments = () => {
             <div className="modal-body">
               <p>Are you sure you want to delete this appointment?</p>
               <div className="appointment-summary">
-                <p><strong>Doctor:</strong> {selectedAppointment.doctor}</p>
-                <p><strong>Date:</strong> {selectedAppointment.date}</p>
-                <p><strong>Time:</strong> {selectedAppointment.time}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName}</p>
+                <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
+                <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
               </div>
               <div className="modal-footer">
-                <button className="delete-btn" onClick={handleDeleteConfirm}>Yes, Delete</button>
+                <button className="delete-btn" onClick={() => handleDelete(selectedAppointment)}>Yes, Delete</button>
                 <button className="cancel-btn" onClick={() => setShowDeleteModal(false)}>No, Cancel</button>
               </div>
             </div>

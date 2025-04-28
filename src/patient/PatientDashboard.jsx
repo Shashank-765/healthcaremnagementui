@@ -11,7 +11,7 @@ import doctorImage from '../image/girl.png';
 // import doctorImage from '../image/doctor.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
-
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -28,6 +28,11 @@ const PatientDashboard = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showMedicalHistoryDropdown, setShowMedicalHistoryDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  // New: Dashboard API integration
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -48,15 +53,61 @@ const PatientDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Dummy data for appointments
-  const appointments = [
-    { id: 1, doctor: "Dr. Sarah Johnson", date: "2024-02-25", time: "10:00 AM" },
-    { id: 2, doctor: "Dr. Michael Chen", date: "2024-03-01", time: "2:30 PM"},
-    { id: 3, doctor: "Dr. Emily Brown", date: "2024-03-05", time: "11:15 AM" },
-    { id: 4, doctor: "Dr. vishal Brown", date: "2024-06-05", time: "10:15 AM" },
-    { id: 5, doctor: "Dr. vijay Brown", date: "2024-03-15", time: "12:15 AM" },
-    { id: 6, doctor: "Dr. katherine Brown", date: "2024-03-25", time: "10:15 AM" }
-  ];
+  // Add user data check
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    const userRole = localStorage.getItem('userRole');
+    
+    console.log('PatientDashboard - User Data:', userData);
+    console.log('PatientDashboard - User Role:', userRole);
+    
+    try {
+      const parsedUserData = userData ? JSON.parse(userData) : null;
+      console.log('Parsed User Data:', parsedUserData);
+      
+      if (!parsedUserData || userRole !== 'patient') {
+        console.log('No valid user data or wrong role, redirecting to login');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('userRole');
+        navigate('/', { replace: true });
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      localStorage.removeItem('userData');
+      localStorage.removeItem('userRole');
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const token = userData.token;
+        if (!token) {
+          setError('Please login to view dashboard');
+          setLoading(false);
+          return;
+        }
+        const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setDashboard(data.data);
+        } else {
+          setError(data.message || 'Failed to load dashboard');
+        }
+      } catch (err) {
+        setError('Error loading dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
 
   // Dummy data for medical history
   const [medicalHistory, setMedicalHistory] = useState([
@@ -79,16 +130,6 @@ const PatientDashboard = () => {
       followUp: "2024-11-20"
     }
   ]);
-
-  // Dummy data for profile
-  const profileData = {
-    name: "John Doe",
-    age: 35,
-    bloodGroup: "O+",
-    contact: "+1234567890",
-    email: "john.doe@example.com",
-    address: "123 Healthcare St, Medical City, MC 12345"
-  };
 
   const handleUserClick = () => {
     setShowUserDropdown(!showUserDropdown);
@@ -159,6 +200,9 @@ const PatientDashboard = () => {
     setShowProfileDropdown(false);
   };
 
+  if (loading) return <div>Loading dashboard...</div>;
+  if (error) return <div className="error-message">{error}</div>;
+
   return (
     <div className="dashboard-container">
       <button className="mobile-toggle" onClick={toggleSidebar}>
@@ -194,10 +238,10 @@ const PatientDashboard = () => {
                 </div>
                 <div className="stat-info">
                   <h4>Total Appointments</h4>
-                  <div className="stat-number">15</div>
-                  <div className="stat-trends">
-                    <span className="trend up">Next: Tomorrow</span>
-                  </div>
+                  <div className="stat-number">{dashboard?.totalAppointments ?? '-'}</div>
+                  {/* <div className="stat-trends">
+                    <span className="trend up">Next: {dashboard?.recentAppointments?.[0]?.date ?? '-'}</span>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -209,7 +253,7 @@ const PatientDashboard = () => {
                 </div>
                 <div className="stat-info">
                   <h4>Medical Records</h4>
-                  <div className="stat-number">8</div>
+                  <div className="stat-number">{dashboard?.medicalRecords ?? '-'}</div>
                   <div className="stat-trends">
                     <span className="trend up">Last Updated: Today</span>
                   </div>
@@ -224,7 +268,7 @@ const PatientDashboard = () => {
                 </div>
                 <div className="stat-info">
                   <h4>Doctor Name</h4>
-                  <div className="stat-number">Dr. Smith</div>
+                  <div className="stat-number">{dashboard?.primaryDoctor?.fullName ?? '-'}</div>
                   <div className="stat-trends">
                     <span className="trend up">Primary Doctor</span>
                   </div>
@@ -252,10 +296,10 @@ const PatientDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {appointments.map(appointment => (
-                        <tr key={appointment.id}>
-                          <td>{appointment.doctor}</td>
-                          <td>{appointment.date}</td>
+                      {dashboard?.recentAppointments?.map((appointment, idx) => (
+                        <tr key={idx}>
+                          <td>{appointment.doctorName}</td>
+                          <td>{appointment.date ? new Date(appointment.date).toLocaleDateString('en-US') : '-'}</td>
                           <td>{appointment.time}</td>
                         </tr>
                       ))}
@@ -285,22 +329,22 @@ const PatientDashboard = () => {
                       <i className="fas fa-user-md"></i>
                     </div>
                     <div className="doctor-info">
-                      <h4>Dr. Smith</h4>
+                      <h4>{dashboard?.primaryDoctor?.fullName ?? '-'}</h4>
                       <p className="specialization">
                         <i className="fas fa-stethoscope"></i>
-                        Cardiologist
+                        {dashboard?.primaryDoctor?.specialization ?? '-'}
                       </p>
                       <p className="email">
                         <i className="fas fa-envelope"></i>
-                        dr.smith@hospital.com
+                        {dashboard?.primaryDoctor?.email ?? '-'}
                       </p>
                       <p className="experience">
                         <i className="fas fa-clock"></i>
-                        15+ Years Experience
+                        {dashboard?.primaryDoctor?.experience ? `${dashboard.primaryDoctor.experience}+ Years Experience` : '-'}
                       </p>
                       <p className="availability">
                         <i className="fas fa-calendar-check"></i>
-                        Available: Mon-Fri
+                        {dashboard?.primaryDoctor?.availability ?? '-'}
                       </p>
                       <button className="contact-doctor-btn">
                         <i className="fas fa-phone"></i>

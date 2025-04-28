@@ -6,8 +6,8 @@ import easyCareLogo from '../image/registernow.png';
 import logoImage2 from '../image/signupforpatientimage.jpg';
 import register5 from '../image/register5.png';
 
-const API_URL = 'http://localhost:5000/api/v1';
-
+// const API_URL = 'http://localhost:5000/api/v1';
+ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const Signup = () => {
   const navigate = useNavigate();
   const [userType, setUserType] = useState("patient");
@@ -52,7 +52,7 @@ const Signup = () => {
   const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
   const specializations = [
     "Cardiology", "Neurology", "Pediatrics", "Orthopedics", 
-    "Dermatology", "Ophthalmology", "ENT", "General Medicine"
+    "Dermatology", "ENT", "General Medicine"
   ];
 
   const validatePhoneNumber = (number) => {
@@ -289,9 +289,32 @@ const Signup = () => {
           }
         );
 
-        if (response.data.success) {
+        console.log('Doctor signup response:', response.data);
+
+        if (response.data.statusCode === 201 || response.data.statusCode === 200 || response.data.success) {
           alert("Doctor registration successful! Please login to continue.");
-          navigate('/', { replace: true });
+          // Clear form data
+          setFormData({
+            fullName: "",
+            gender: "",
+            dob: "",
+            age: "",
+            contactNumber: "",
+            email: "",
+            password: "",
+            profilePhoto: null,
+            specialization: "",
+            licenseNumber: "",
+            experience: "",
+            hospital: "",
+            verified: false
+          });
+          // Force navigation to login page
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
+        } else {
+          setApiError(response.data.message || "Registration failed. Please try again.");
         }
 
       } else {
@@ -337,9 +360,13 @@ const Signup = () => {
           }
         );
 
-        if (response.data.success) {
+        console.log('Patient signup response:', response.data);
+
+        if (response.data.statusCode === 200 || response.data.success) {
           alert("Patient registration successful! Please login to continue.");
           navigate('/', { replace: true });
+        } else {
+          setApiError(response.data.message || "Registration failed. Please try again.");
         }
       }
 

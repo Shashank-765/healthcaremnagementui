@@ -66,13 +66,8 @@ export const addUser = (email, password, userType) => {
     };
 };
 
+// Basic validation functions for login
 export const validateLogin = (email, password, userType) => {
-    // Refresh mockUsers from localStorage
-    mockUsers = getStoredUsers();
-    
-    console.log('Validating login for:', { email, userType });
-    console.log('Available users:', mockUsers[userType]);
-    
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -90,27 +85,10 @@ export const validateLogin = (email, password, userType) => {
         };
     }
 
-    // Ensure the userType array exists
-    if (!mockUsers[userType]) {
-        mockUsers[userType] = [];
-        saveUsers();
-    }
-
-    // Check user type and credentials
-    const users = mockUsers[userType];
-    const user = users.find(u => u.email === email && u.password === password);
-
-    if (!user) {
-        console.log('No matching user found');
-        return {
-            isValid: false,
-            message: `Invalid credentials for ${userType}`
-        };
-    }
-
+    // If all validations pass
     return {
         isValid: true,
-        message: 'Login successful',
+        message: 'Validation successful',
         userType: userType
     };
 }; 
