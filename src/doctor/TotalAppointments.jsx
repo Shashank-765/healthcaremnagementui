@@ -1,118 +1,191 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TotalAppointments.css';
 import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const TotalAppointments = () => {
   const navigate = useNavigate();
+  const [appointments, setAppointments] = useState([]);
   const [showAllAppointments, setShowAllAppointments] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Sample appointments data
-  const appointmentsData = [
-    {
-      id: "A001",
-      patientName: "John Doe",
-      date: "2024-02-20",
-      time: "10:00 AM",
-      department: "Cardiology",
-      status: "Confirmed"
-    },
-    {
-      id: "A002",
-      patientName: "Jane Smith",
-      date: "2024-02-21",
-      time: "11:30 AM",
-      department: "Neurology",
-      status: "Pending"
-    },
-    {
-      id: "A003",
-      patientName: "Mike Johnson",
-      date: "2024-02-22",
-      time: "2:15 PM",
-      department: "Orthopedics",
-      status: "Confirmed"
-    },
-    {
-      id: "A004",
-      patientName: "Sarah Williams",
-      date: "2024-02-23",
-      time: "9:45 AM",
-      department: "Pediatrics",
-      status: "Confirmed"
-    },
-    {
-      id: "A005",
-      patientName: "Robert Brown",
-      date: "2024-02-24",
-      time: "3:30 PM",
-      department: "Dermatology",
-      status: "Pending"
-    },
-    {
-      id: "A006",
-      patientName: "Emily Davis",
-      date: "2024-02-25",
-      time: "1:00 PM",
-      department: "ENT",
-      status: "Confirmed"
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      
+      console.log('User data from localStorage:', {
+        hasToken: !!userData?.token,
+        role: userData?.role,
+        email: userData?.email,
+        fullName: userData?.fullName
+      });
+
+      if (!userData || !userData.token) {
+        setError('Authentication required');
+        return;
+      }
+
+      if (userData.role !== 'doctor') {
+        setError('Only doctors can access this page');
+        return;
+      }
+
+      const doctorFullName = "vaibhavdoctor";
+      console.log('Making API request for doctor:', doctorFullName);
+
+      const response = await axios.get(`${API_URL}/appointment/appointments/${doctorFullName}`, {
+        headers: {
+          'Authorization': `Bearer ${userData.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('API Response:', {
+        success: response.data.success,
+        message: response.data.message,
+        doctor: response.data.data?.doctor,
+        appointmentsCount: response.data.data?.appointments?.length || 0
+      });
+
+      if (response.data.success) {
+        if (!response.data.data.appointments || response.data.data.appointments.length === 0) {
+          setError('No appointments found');
+          setAppointments([]);
+        } else {
+          setAppointments(response.data.data.appointments);
+          setError('');
+        }
+      } else {
+        setError(response.data.message || 'Failed to fetch appointments');
+      }
+    } catch (error) {
+      console.error('Error fetching appointments:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      if (error.response?.status === 404) {
+        setError('No appointments found for this doctor');
+      } else if (error.response?.status === 401) {
+        setError('Session expired. Please login again');
+      } else if (error.response?.status === 403) {
+        setError('You do not have permission to view appointments');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(error.response?.data?.message || 'Error loading appointments');
+      }
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const displayedAppointments = showAllAppointments ? appointmentsData : appointmentsData.slice(0, 3);
-
-  const handleDeleteClick = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
-    // Add delete logic here
-    setShowDeleteModal(false);
-    setSelectedAppointment(null);
+  // Filter appointments based on search term
+  const filteredAppointments = appointments.filter(appointment => 
+    appointment.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appointment.patientId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appointment.status?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayedAppointments = showAllAppointments ? filteredAppointments : filteredAppointments.slice(0, 5);
+
+  const formatDateTime = (date, time) => {
+    const formattedDate = new Date(date).toLocaleDateString();
+    return `${formattedDate} ${time}`;
   };
 
-  const handleViewClick = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowViewModal(true);
-    setEditMode(false);
+  const handleStatusChange = async (appointmentId, newStatus) => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      
+      if (!userData || !userData.token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const response = await axios.patch(
+        `${API_URL}/appointment/update-status`,
+        {
+          appointmentId,
+          status: newStatus
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        fetchAppointments();
+      } else {
+        setError(response.data.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setError(error.response?.data?.message || 'Error updating status');
+    }
   };
 
-  const handleEditClick = () => {
-    setEditMode(true);
-  };
+  const handleDelete = async (appointmentId) => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      
+      if (!userData || !userData.token) {
+        setError('Authentication required');
+        return;
+      }
 
-  const handleSaveEdit = () => {
-    // Add your save logic here
-    setEditMode(false);
-    setShowViewModal(false);
-  };
+      const response = await axios.delete(
+        `${API_URL}/appointment/delete-appointment/id/${appointmentId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-  const handleCancelEdit = () => {
-    setEditMode(false);
-    setShowViewModal(false);
-  };
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+      if (response.data.success) {
+        fetchAppointments();
+        setShowDeleteModal(false);
+      } else {
+        setError(response.data.message || 'Failed to delete appointment');
+      }
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      setError(error.response?.data?.message || 'Error deleting appointment');
+    }
   };
 
   return (
     <div className="dashboard-container">
      <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isSubmenuOpen={true}/>
+        <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSubmenuOpen={true}/>
       </div>
       <div className="main-content">
-        <Navbar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-        {/* Banner Section */}
+        <Navbar isSidebarOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        
         <div className="admin-banner" style={{ backgroundImage: `url(${bannerImage})` }}>
           <div className="banner-content">
             <div className="doctor-profile">
@@ -121,53 +194,63 @@ const TotalAppointments = () => {
             <h1>YOUR HEALTH IS OUR PRIORITY</h1>
           </div>
         </div>
+
         <div className="total-appointments-container">
           <div className="section-header">
             <h2>Total Appointments</h2>
             <div className="header-actions">
               <div className="search-boxs">
                 <i className="fas fa-search"></i>
-                <input type="text" placeholder="Search appointments..."/>
+                <input 
+                  type="text" 
+                  placeholder="Search by patient name, email or status..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
           </div>
+
+          {error && <div className="error-message">{error}</div>}
+          
+          {loading ? (
+            <div className="loading-spinner">
+              <i className="fas fa-spinner fa-spin"></i> Loading appointments...
+            </div>
+          ) : (
           <div className="table-responsive">
             <table className="appointments-table">
               <thead>
                 <tr>
-                  <th>Appointment ID</th>
                   <th>Patient Name</th>
-                  <th>Department</th>
-                  <th>Date</th>
-                  <th>Time</th>
+                    <th>Email</th>
+                    <th>Date & Time</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedAppointments.map((appointment, index) => (
-                  <tr key={index}>
-                    <td>{appointment.id}</td>
-                    <td>{appointment.patientName}</td>
-                    <td>{appointment.department}</td>
-                    <td>{appointment.date}</td>
-                    <td>{appointment.time}</td>
-                    <td>
-                      <span className={`status-badge ${appointment.status.toLowerCase()}`}>
-                        {appointment.status}
-                      </span>
+                  {displayedAppointments.map((appointment) => (
+                    <tr key={appointment._id}>
+                      <td>{appointment.patientId?.fullName}</td>
+                      <td>{appointment.patientId?.email}</td>
+                      <td>{formatDateTime(appointment.appointmentDate, appointment.appointmentTime)}</td>
+                      <td>
+                        <select 
+                          value={appointment.status}
+                          onChange={(e) => handleStatusChange(appointment._id, e.target.value)}
+                          className={`status-select ${appointment.status.toLowerCase()}`}
+                        >
+                          <option value="confirmed">Confirmed</option>
+                          <option value="pending">Pending</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
                     </td>
                     <td>
                       <div className="action-buttons">
                         <button 
-                          className="action-btn view"
-                          onClick={() => handleViewClick(appointment)}
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                        <button 
                           className="action-btn delete"
-                          onClick={() => handleDeleteClick(appointment)}
+                            onClick={() => handleDelete(appointment._id)}
                         >
                           <i className="fas fa-trash"></i>
                         </button>
@@ -178,6 +261,9 @@ const TotalAppointments = () => {
               </tbody>
             </table>
           </div>
+          )}
+
+          {!loading && filteredAppointments.length > 5 && (
           <div className="view-more-container">
             <button 
               className="view-more-btn"
@@ -190,150 +276,9 @@ const TotalAppointments = () => {
               )}
             </button>
           </div>
+          )}
         </div>
       </div>
-
-      {/* View/Edit Modal */}
-      {showViewModal && (
-        <div className="modal-overlay">
-          <div className="modal-content view-modal">
-            <div className="modal-header">
-              <h3>{editMode ? 'Edit Appointment' : 'Appointment Details'}</h3>
-              <button 
-                className="close-btn"
-                onClick={handleCancelEdit}
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="modal-body">
-              <form className="appointment-form">
-                <div className="form-group">
-                  <label>Appointment ID</label>
-                  <input 
-                    type="text" 
-                    value={selectedAppointment?.id} 
-                    disabled={true}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Patient Name</label>
-                  <input 
-                    type="text" 
-                    value={selectedAppointment?.patientName} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Department</label>
-                  <input 
-                    type="text" 
-                    value={selectedAppointment?.department} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Date</label>
-                  <input 
-                    type="date" 
-                    value={selectedAppointment?.date} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Time</label>
-                  <input 
-                    type="time" 
-                    value={selectedAppointment?.time} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select 
-                    value={selectedAppointment?.status} 
-                    disabled={!editMode}
-                  >
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </form>
-            </div>
-            <div className="modal-footer">
-              {!editMode ? (
-                <>
-                  <button 
-                    className="edit-btn"
-                    onClick={handleEditClick}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="cancel-btn"
-                    onClick={handleCancelEdit}
-                  >
-                    Close
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    className="save-btn"
-                    onClick={handleSaveEdit}
-                  >
-                    Save Changes
-                  </button>
-                  <button 
-                    className="cancel-btn"
-                    onClick={handleCancelEdit}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Confirm Delete</h3>
-              <button 
-                className="close-btn"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to delete this appointment?</p>
-              <p><strong>Patient:</strong> {selectedAppointment?.patientName}</p>
-              <p><strong>Date:</strong> {selectedAppointment?.date}</p>
-              <p><strong>Time:</strong> {selectedAppointment?.time}</p>
-            </div>
-            <div className="modal-footer">
-              <button 
-                className="cancel-btn"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="delete-btn"
-                onClick={handleConfirmDelete}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

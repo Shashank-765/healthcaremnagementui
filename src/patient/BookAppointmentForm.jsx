@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../patient/PatientDashboard.css';
+import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
@@ -16,44 +17,83 @@ const BookAppointmentForm = () => {
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const token = userData.token;
-  const userRole = userData.role;
+  // Add authentication check
+  useEffect(() => {
+    const checkAuthAndFetchData = async () => {
+      try {
+        const userData = localStorage.getItem('userData');
+        const parsedUserData = userData ? JSON.parse(userData) : null;
+        console.log('Parsed User Data:', parsedUserData);
+        
+        if (!parsedUserData || !parsedUserData.token || !parsedUserData._id || parsedUserData.role !== 'patient') {
+          console.log('No valid user data or wrong role');
+          setError('Please log in again from the patient dashboard');
+          navigate('/patient-dashboard', { replace: true });
+          return;
+        }
+
+        console.log('User authenticated as patient with ID:', parsedUserData._id);
+      } catch (error) {
+        console.error('Error in authentication check:', error);
+        setError('Error checking authentication');
+        navigate('/patient-dashboard', { replace: true });
+      }
+    };
+
+    checkAuthAndFetchData();
+  }, [navigate]);
 
   // Fetch doctors when department changes
   useEffect(() => {
-    if (formData.department) {
-      fetchDoctors();
-    }
-  }, [formData.department]);
+    const fetchDoctors = async () => {
+      if (!formData.department) return;
 
-  const fetchDoctors = async () => {
-    try {
-      const response = await fetch(`${API_URL}/appointment/doctors/all`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      try {
+        setLoading(true);
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        
+        if (!userData.token) {
+          setError('Authentication required');
+          navigate('/patient-dashboard', { replace: true });
+          return;
         }
-      });
-      const data = await response.json();
-      console.log('Doctors data:', data); // Debug log
-      
-      if (data.success) {
-        if (userRole === 'admin') {
-          setDoctors(data.data.doctors);
-        } else {
-          const filteredDoctors = data.data.doctors.filter(doctor => 
+
+        const response = await axios.get(`${API_URL}/appointment/doctors/all`, {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('Doctors API Response:', response.data);
+
+        if (response.data.success) {
+          const filteredDoctors = response.data.data.doctors.filter(doctor => 
             doctor.specialization.toLowerCase() === formData.department.toLowerCase()
           );
-          console.log('Filtered doctors:', filteredDoctors); // Debug log
+          console.log('Filtered doctors:', filteredDoctors);
           setDoctors(filteredDoctors);
+          setError('');
+        } else {
+          setError(response.data.message || 'Failed to fetch doctors');
         }
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+        if (error.response?.status === 401) {
+          setError('Session expired. Please login again.');
+          navigate('/patient-dashboard', { replace: true });
+        } else {
+          setError('Error loading doctors. Please try again.');
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.log('Error fetching doctors:', error.message);
-      setError('Error loading doctors. Please try again.');
-    }
-  };
+    };
+
+    fetchDoctors();
+  }, [formData.department, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -61,27 +101,44 @@ const BookAppointmentForm = () => {
       ...prev,
       [name]: value
     }));
+    setError(''); // Clear any previous errors
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/appointment/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      
+      if (!userData.token || !userData._id || !userData.email) {
+        setError('Authentication required. Please try again.');
+        setLoading(false);
+        return;
+      }
 
-      const data = await response.json();
-      console.log('Appointment response:', data); // Debug log
+      const appointmentData = {
+        ...formData,
+        patientEmail: userData.email,
+        patientId: userData._id
+      };
 
-      if (response.ok) {
+      const response = await axios.post(
+        `${API_URL}/appointment/create`,
+        appointmentData,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Appointment Response:', response.data);
+
+      if (response.data.success) {
         setSuccess('Appointment booked successfully!');
         // Clear form
         setFormData({
@@ -96,11 +153,17 @@ const BookAppointmentForm = () => {
           navigate('/all-appointments');
         }, 1000);
       } else {
-        setError(data.message || 'Failed to book appointment');
+        setError(response.data.message || 'Failed to book appointment');
       }
     } catch (error) {
-      setError('Error booking appointment. Please try again.');
-      console.log('Error:', error.message);
+      console.error('Error booking appointment:', error);
+      if (error.response?.status === 401) {
+        setError('Session expired. Please try again.');
+      } else {
+        setError(error.response?.data?.message || 'Error booking appointment. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +180,7 @@ const BookAppointmentForm = () => {
             value={formData.department}
             onChange={handleChange}
             required
+            disabled={loading}
           >
             <option value="">Select Department</option>
             <option value="Cardiology">Cardiology</option>
@@ -132,13 +196,12 @@ const BookAppointmentForm = () => {
             value={formData.doctorId}
             onChange={handleChange}
             required
-            disabled={!formData.department && localStorage.getItem('userRole') !== 'admin'}
+            disabled={!formData.department || loading}
           >
             <option value="">Select Doctor</option>
             {doctors.map(doctor => (
               <option key={doctor._id} value={doctor._id}>
                 Dr. {doctor.fullName} - {doctor.specialization}
-                {localStorage.getItem('userRole') === 'admin' && ` (${doctor.experience} years)`}
               </option>
             ))}
           </select>
@@ -154,6 +217,7 @@ const BookAppointmentForm = () => {
             onChange={handleChange}
             min={new Date().toISOString().split('T')[0]}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group col-md-6">
@@ -163,6 +227,7 @@ const BookAppointmentForm = () => {
             value={formData.appointmentTime}
             onChange={handleChange}
             required
+            disabled={loading}
           >
             <option value="">Select Time</option>
             <option value="10:00 AM">10:00 AM</option>
@@ -183,10 +248,15 @@ const BookAppointmentForm = () => {
           onChange={handleChange}
           placeholder="Briefly describe your symptoms or reason for visit"
           required
+          disabled={loading}
         />
       </div>
-      <button type="submit" className="book-appointment-btn">
-        Book Appointment
+      <button 
+        type="submit" 
+        className="book-appointment-btn"
+        disabled={loading}
+      >
+        {loading ? 'Booking...' : 'Book Appointment'}
       </button>
     </form>
   );

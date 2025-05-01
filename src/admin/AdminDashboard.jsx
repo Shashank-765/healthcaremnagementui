@@ -24,38 +24,8 @@ const AdminDashboard = () => {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Pagination state
-  const [itemsPerPage] = useState(3);
-  const [confirmedPage, setConfirmedPage] = useState(1);
-  const [pendingPage, setPendingPage] = useState(1);
-  const [confirmedAppointments, setConfirmedAppointments] = useState([
-    {
-      id: 1,
-      doctor: {
-        name: "Dr. Sarah Johnson",
-        specialization: "Cardiologist"
-      },
-      patient: {
-        name: "John Doe",
-        time: "Today, 10:00 AM",
-        contact: "+1234567890"
-      }
-    }
-  ]);
-  const [pendingAppointments, setPendingAppointments] = useState([
-    {
-      id: 1,
-      doctor: {
-        name: "Dr. Emily Brown",
-        specialization: "Pediatrician"
-      },
-      patient: {
-        name: "David Smith",
-        time: "Tomorrow, 09:00 AM",
-        contact: "+1234567892"
-      }
-    }
-  ]);
+  const [confirmedAppointments, setConfirmedAppointments] = useState([]);
+  const [pendingAppointments, setPendingAppointments] = useState([]);
   const [adminStats, setAdminStats] = useState({
     totalBeds: 0,
     totalHospitals: 0,
@@ -68,6 +38,12 @@ const AdminDashboard = () => {
     newPatients: 0,
     totalAppointments: 0,
   });
+  const [selectedPatient, setSelectedPatient] = useState('');
+  const [signupDoctors, setSignupDoctors] = useState([]);
+  const [signupPatients, setSignupPatients] = useState([]);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState('');
+  const [transferError, setTransferError] = useState('');
 
   // Mock data for doctors
   const doctors = [
@@ -216,28 +192,6 @@ const AdminDashboard = () => {
     return matchesSearch && matchesSpecialization;
   });
 
-  // Calculate current items for confirmed appointments
-  const indexOfLastConfirmed = confirmedPage * itemsPerPage;
-  const indexOfFirstConfirmed = indexOfLastConfirmed - itemsPerPage;
-  const currentConfirmed = confirmedAppointments.slice(indexOfFirstConfirmed, indexOfLastConfirmed);
-
-  // Calculate current items for pending appointments
-  const indexOfLastPending = pendingPage * itemsPerPage;
-  const indexOfFirstPending = indexOfLastPending - itemsPerPage;
-  const currentPending = pendingAppointments.slice(indexOfFirstPending, indexOfLastPending);
-
-  const handleConfirmedPageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= Math.ceil(confirmedAppointments.length / itemsPerPage)) {
-      setConfirmedPage(newPage);
-    }
-  };
-
-  const handlePendingPageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= Math.ceil(pendingAppointments.length / itemsPerPage)) {
-      setPendingPage(newPage);
-    }
-  };
-
   const handleAcceptAppointment = (appointmentId) => {
     // Find the appointment in pending appointments
     const appointment = pendingAppointments.find(apt => apt.id === appointmentId);
@@ -269,7 +223,7 @@ const AdminDashboard = () => {
             }
         });
 
-        if (response.data) {
+        if (response.data.success) {
             const { 
                 totalBeds, 
                 totalHospitals, 
@@ -279,16 +233,21 @@ const AdminDashboard = () => {
                 newDoctors,
                 newPatients,
                 totalAppointments,
+                latestConfirmedAppointments,
+                latestPendingAppointments
             } = response.data.data;
             
+            // Calculate total staff from staffInformation
             const totalStaff = staffInformation ? 
-                Object.values(staffInformation).reduce((sum, count) => sum + (count || 0), 0) : 0;
+                (staffInformation.nurses || 0) + 
+                (staffInformation.receptionists || 0) + 
+                (staffInformation.otherStaff || 0) : 0;
             
             setAdminStats({
                 totalBeds,
                 totalHospitals,
                 staffInformation: totalStaff,
-                otherStaff: totalStaff - (totalBeds + totalHospitals),
+                otherStaff: staffInformation?.otherStaff || 0,
                 totalStaff: totalStaff,
                 totalPatients: totalPatients || 0,
                 totalDoctors: totalDoctors || 0,
@@ -296,10 +255,19 @@ const AdminDashboard = () => {
                 newPatients: newPatients || 0,
                 totalAppointments: totalAppointments || 0,
             });
+
+            // Set the latest appointments
+            setConfirmedAppointments(latestConfirmedAppointments || []);
+            setPendingAppointments(latestPendingAppointments || []);
         }
     } catch (error) {
         console.error('Error fetching admin data:', error);
         setError('Failed to load admin data');
+        if (error.response?.status === 401) {
+            // Token expired or invalid
+            Cookies.remove('token');
+            navigate('/admin/login');
+        }
     } finally {
         setLoading(false);
     }
@@ -308,6 +276,48 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAdminData();
   }, []);
+
+  const handleTransfer = async () => {
+    try {
+      setTransferLoading(true);
+      setTransferError('');
+      setTransferSuccess('');
+
+      const token = Cookies.get('token');
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      const response = await axios.post(
+        `${API_URL}/admin/transfer-signup-data`,
+        {
+          doctorEmail: selectedDoctor,
+          patientEmail: selectedPatient
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setTransferSuccess(response.data.message || 'Data transferred successfully');
+        // Clear selections
+        setSelectedDoctor('');
+        setSelectedPatient('');
+      } else {
+        setTransferError(response.data.message || 'Failed to transfer data');
+      }
+    } catch (error) {
+      console.error('Error transferring data:', error);
+      setTransferError(error.response?.data?.message || 'Failed to transfer data');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -386,6 +396,18 @@ const AdminDashboard = () => {
         
         {/* Stats Cards */}
         <div className="stats-grid-admin">
+          {loading ? (
+            <div className="loading-spinner">
+              <i className="fas fa-spinner fa-spin"></i>
+              Loading dashboard data...
+            </div>
+          ) : error ? (
+            <div className="error-message">
+              <i className="fas fa-exclamation-circle"></i>
+              {error}
+            </div>
+          ) : (
+            <>
           {/* Doctor Card */}
           <div className="stat-card">
             <div className="stat-icon doctor">
@@ -459,9 +481,12 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Small Info Cards */}
+        {!loading && !error && (
         <div className="small-cards-grid">
           <div className="small-card">
             <div className="small-card-icon">
@@ -523,6 +548,7 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+        )}
         
         <div className="appointment-admindashboard">
           <div className="row">
@@ -530,33 +556,36 @@ const AdminDashboard = () => {
             <div className="col-md-6">
               <div className="appointment-section">
                 <div className="appointment-header">
-                  <h3><i className="fas fa-check-circle"></i> Confirmed Appointments</h3>
+                  <h3><i className="fas fa-check-circle"></i> Latest Confirmed Appointment</h3>
                 </div>
                 <div className="appointment-cards">
-                  {currentConfirmed.map(appointment => (
-                    <div key={appointment.id} className="appointment-card confirmed">
+                  {confirmedAppointments.length > 0 ? (
+                    <div className="appointment-card confirmed">
                       <div className="appointment-info">
                         <div className="doctor-brief">
                           <i className="fas fa-user-md"></i>
                           <div className="doctor-details">
-                            <h4>{appointment.doctor.name}</h4>
-                            <p>{appointment.doctor.specialization}</p>
+                            <h4>{confirmedAppointments[0].doctor.name}</h4>
+                            <p>{confirmedAppointments[0].doctor.specialization}</p>
                           </div>
                         </div>
                         <div className="appointment-details">
-                          <p><i className="fas fa-user"></i> {appointment.patient.name}</p>
-                          <p><i className="fas fa-calendar"></i> {appointment.patient.time}</p>
-                          <p><i className="fas fa-phone"></i> {appointment.patient.contact}</p>
+                          <p><i className="fas fa-user"></i> {confirmedAppointments[0].patient.name}</p>
+                          <p><i className="fas fa-calendar"></i> {new Date(confirmedAppointments[0].appointmentDate).toLocaleDateString()} {confirmedAppointments[0].appointmentTime}</p>
                         </div>
                         <div className="appointment-status">
                           <span className="status-badge confirmed">Confirmed</span>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="no-appointments">
+                      <p>No confirmed appointments found</p>
+                    </div>
+                  )}
                   <div className="view-more-link">
                     <button onClick={() => navigate('/admin/confirmed-appointments')} className="view-more-btn">
-                      View More <i className="fas fa-arrow-right"></i>
+                      View All <i className="fas fa-arrow-right"></i>
                     </button>
                   </div>
                 </div>
@@ -567,171 +596,44 @@ const AdminDashboard = () => {
             <div className="col-md-6">
               <div className="appointment-section">
                 <div className="appointment-header">
-                  <h3><i className="fas fa-clock"></i> Pending Appointments</h3>
+                  <h3><i className="fas fa-clock"></i> Latest Pending Appointment</h3>
                 </div>
                 <div className="appointment-cards">
-                  {currentPending.map(appointment => (
-                    <div key={appointment.id} className="appointment-card pending">
+                  {pendingAppointments.length > 0 ? (
+                    <div className="appointment-card pending">
                       <div className="appointment-info">
                         <div className="doctor-brief">
                           <i className="fas fa-user-md"></i>
                           <div className="doctor-details">
-                            <h4>{appointment.doctor.name}</h4>
-                            <p>{appointment.doctor.specialization}</p>
+                            <h4>{pendingAppointments[0].doctor.name}</h4>
+                            <p>{pendingAppointments[0].doctor.specialization}</p>
                           </div>
                         </div>
                         <div className="appointment-details">
-                          <p><i className="fas fa-user"></i> {appointment.patient.name}</p>
-                          <p><i className="fas fa-calendar"></i> {appointment.patient.time}</p>
-                          <p><i className="fas fa-phone"></i> {appointment.patient.contact}</p>
+                          <p><i className="fas fa-user"></i> {pendingAppointments[0].patient.name}</p>
+                          <p><i className="fas fa-calendar"></i> {new Date(pendingAppointments[0].appointmentDate).toLocaleDateString()} {pendingAppointments[0].appointmentTime}</p>
                         </div>
                         <div className="appointment-status">
                           <span className="status-badge pending">Pending</span>
                           <div className="action-buttons">
-                            <button className="accept-btn" onClick={() => handleAcceptAppointment(appointment.id)}>
-                              <i className="fas fa-check"></i>
-                            </button>
-                            <button className="reject-btn" onClick={() => handleRejectAppointment(appointment.id)}>
-                              <i className="fas fa-times"></i>
-                            </button>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="no-appointments">
+                      <p>No pending appointments found</p>
+                    </div>
+                  )}
                   <div className="view-more-link">
                     <button onClick={() => navigate('/admin/pending-appointments')} className="view-more-btn">
-                      View More <i className="fas fa-arrow-right"></i>
+                      View All <i className="fas fa-arrow-right"></i>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="header-section-admindashboard">
-          <div className="header-section">
-            <div className="header-content2">
-              <h2>Hospital Doctors</h2>
-              <div className="header-content-right">
-              <div className="search-bar1">
-                <i className="fas fa-search search-icon"></i>
-                <input 
-                  type="text" 
-                  placeholder="Search doctors by name..." 
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                />
-              </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="doctors-grid">
-            {filteredDoctors.map(doctor => (
-              <div key={doctor.id} className="doctor-card">
-                <div className="doctor-image">
-                  <i className="fas fa-user-md"></i>
-                </div>
-                <div className="doctor-info">
-                  <h3>{doctor.name}</h3>
-                  <p className="specialization">{doctor.specialization}</p>
-                  <p className="experience"><i className="fas fa-clock"></i> {doctor.experience}</p>
-                  <p className="availability"><i className="fas fa-calendar"></i> {doctor.availability}</p>
-                  <p className="contact"><i className="fas fa-phone"></i> {doctor.contact}</p>
-                  <p className="email"><i className="fas fa-envelope"></i> {doctor.email}</p>
-                </div>
-                <div className="doctor-actions">
-                  <button className="view-profile" onClick={() => handleViewProfile(doctor)}>View Profile</button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Profile Modal */}
-          {showModal && selectedDoctor && (
-            <div className="modal-overlay" onClick={closeModal}>
-              <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Doctor Profile</h2>
-                  <button className="close-button" onClick={closeModal}>
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-                <div className="modal-body">
-                  <div className="profile-header">
-                    <div className="profile-image">
-                      <i className="fas fa-user-md"></i>
-                    </div>
-                    <div className="profile-title">
-                      <h3>{selectedDoctor.name}</h3>
-                      <p>{selectedDoctor.specialization}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="profile-details">
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-clock"></i>
-                        Experience
-                      </div>
-                      <div className="detail-value">{selectedDoctor.experience}</div>
-                    </div>
-                    
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-calendar"></i>
-                        Availability
-                      </div>
-                      <div className="detail-value">{selectedDoctor.availability}</div>
-                    </div>
-                    
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-phone"></i>
-                        Contact
-                      </div>
-                      <div className="detail-value">{selectedDoctor.contact}</div>
-                    </div>
-                    
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-envelope"></i>
-                        Email
-                      </div>
-                      <div className="detail-value">{selectedDoctor.email}</div>
-                    </div>
-
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-star"></i>
-                        Rating
-                      </div>
-                      <div className="detail-value">4.8/5</div>
-                    </div>
-
-                    <div className="detail-item">
-                      <div className="detail-label">
-                        <i className="fas fa-users"></i>
-                        Patients
-                      </div>
-                      <div className="detail-value">1.2k+</div>
-                    </div>
-                  </div>
-
-                  <div className="profile-bio">
-                    <h4>About</h4>
-                    <p>
-                      Dr. {selectedDoctor.name.split(' ')[1]} is a highly skilled {selectedDoctor.specialization.toLowerCase()} 
-                      with {selectedDoctor.experience} of experience. They have successfully treated thousands of patients 
-                      and are known for their patient-centric approach to healthcare.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
           </div>
         </div>
       </div>

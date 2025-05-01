@@ -36,6 +36,8 @@ const DoctorsList = () => {
     reason: ''
   });
   const [showAllDoctors, setShowAllDoctors] = useState(false);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Fetch doctors data with filters
   const fetchDoctors = async () => {
@@ -279,6 +281,45 @@ const DoctorsList = () => {
     }
   };
 
+  // Update handleTransferToAddDoctor function
+  const handleTransferToAddDoctor = async (doctor) => {
+    try {
+      const token = Cookies.get('token');
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      // Now transfer to adddoctor collection
+      const response = await axios.post(
+        `${API_URL}/admin/transfer-signup-data`,
+        {
+          doctorEmail: doctor.email
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Remove the transferred doctor from the list
+        setDoctors(doctors.filter(d => d.email !== doctor.email));
+        alert('Doctor transferred successfully to Add Doctor collection');
+      } else {
+        // Show error popup if doctor already exists
+        setErrorMessage(response.data.message || 'Doctor already exists in Add Doctor collection');
+        setShowErrorPopup(true);
+      }
+    } catch (error) {
+      console.error('Error transferring doctor:', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to transfer doctor');
+      setShowErrorPopup(true);
+    }
+  };
+
   // Update the file input handler
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -467,8 +508,8 @@ const DoctorsList = () => {
                 <tr>
                   <th>Full Name</th>
                   <th>Specialization</th>
-                  <th>Experience</th>
-                  <th>Availability</th>
+                  {/* <th>Experience</th>
+                  <th>Availability</th> */}
                   <th>Contact Number</th>
                   <th>Email</th>
                   <th>Actions</th>
@@ -479,9 +520,9 @@ const DoctorsList = () => {
                   <tr key={doctor._id}>
                     <td>{doctor.fullName}</td>
                     <td>{doctor.specialization}</td>
-                    <td>{doctor.experience}</td>
-                    <td>{doctor.availability || 'Not specified'}</td>
-                    <td>{doctor.contactnumber || 'Not specified'}</td>
+                    {/* <td>{doctor.Experience}</td>
+                    <td>{doctor.Availability || 'Not specified'}</td> */}
+                    <td>{doctor.contactNumber || 'Not specified'}</td>
                     <td>{doctor.email || 'Not specified'}</td>
                     <td className="action-buttons">
                       <button className="view-btn" onClick={() => handleView(doctor)}>
@@ -493,8 +534,11 @@ const DoctorsList = () => {
                       <button className="delete-btn" onClick={() => handleDelete(doctor)}>
                         <i className="fas fa-trash"></i>
                       </button>
-                      <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
+                      {/* <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
                         <i className="fas fa-calendar-plus"></i>
+                      </button> */}
+                      <button className="transfer-btn" onClick={() => handleTransferToAddDoctor(doctor)}>
+                        <i className="fas fa-exchange-alt"></i>
                       </button>
                     </td>
                   </tr>
@@ -565,7 +609,7 @@ const DoctorsList = () => {
                     <input
                       type="text"
                       value={selectedDoctor.fullName}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, name: e.target.value})}
+                      onChange={(e) => setSelectedDoctor({...selectedDoctor, fullName: e.target.value})}
                       required
                     />
                   </div>
@@ -608,7 +652,7 @@ const DoctorsList = () => {
                     <input
                       type="tel"
                       value={selectedDoctor.contactnumber}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, contact: e.target.value})}
+                      onChange={(e) => setSelectedDoctor({...selectedDoctor, contactnumber: e.target.value})}
                       required
                     />
                   </div>
@@ -631,6 +675,9 @@ const DoctorsList = () => {
                   </div>
                   <div className="popup-footer">
                     <button type="submit" className="save-btn">Save Changes</button>
+                    <button type="button" className="transfer-btn" onClick={() => handleTransferToAddDoctor(selectedDoctor)}>
+                      <i className="fas fa-exchange-alt"></i> Transfer to Add Doctor
+                    </button>
                     <button type="button" className="cancel-btn" onClick={() => setShowEditPopup(false)}>Cancel</button>
                   </div>
                 </form>
@@ -791,6 +838,25 @@ const DoctorsList = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showErrorPopup && (
+          <div className="popup-overlay">
+            <div className="popup-content">
+              <div className="popup-header">
+                <h3>Error</h3>
+                <button className="close-btn" onClick={() => setShowErrorPopup(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="popup-body">
+                <p>{errorMessage}</p>
+                <div className="popup-footer">
+                  <button className="ok-btn" onClick={() => setShowErrorPopup(false)}>OK</button>
+                </div>
               </div>
             </div>
           </div>

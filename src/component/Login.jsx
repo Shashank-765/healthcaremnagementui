@@ -13,7 +13,7 @@ const Login = () => {
     email: '',
     password: '',
     rememberMe: false,
-    userType: 'patient' // Default to patient
+    userType: 'patient'
   });
 
   const [error, setError] = useState('');
@@ -24,30 +24,16 @@ const Login = () => {
       ...prevState,
       [name]: type === 'checkbox' ? checked : value
     }));
-    // Clear error when user starts typing
     setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate credentials
-    const validationResult = validateLogin(
-      formData.email,
-      formData.password,
-      formData.userType
-    );
-
-    if (!validationResult.isValid) {
-      setError(validationResult.message);
-      return;
-    }
-
     try {
       const endpoint = formData.userType === 'doctor' ? '/doctor/doctorlogin' : '/patient/patientlogin';
       console.log('Making API call to:', `${API_URL}${endpoint}`);
       
-      // Ensure password is sent as a string
       const loginData = {
         email: formData.email.trim(),
         password: formData.password.trim()
@@ -55,47 +41,63 @@ const Login = () => {
       
       console.log('Sending login data:', loginData);
       
-      const response = await axios.post(`${API_URL}${endpoint}`, loginData, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await axios.post(`${API_URL}${endpoint}`, loginData);
 
       console.log('API Response:', response.data);
 
-      if (response.data.statusCode === 200) {
-        const userData = response.data.data;
-        localStorage.setItem('userData', JSON.stringify({
-          _id: userData._id,
-          email: userData.email,
-          role: userData.role,
-          token: userData.token
-        }));
-        
-        // Navigate based on user type
+      if (response.data.statusCode === 200 && response.data.data) {
+        // Store complete user data
+        const userData = {
+          email: response.data.data.email,
+          token: response.data.data.token,
+          role: formData.userType
+        };
+
+        // Store in localStorage
+        localStorage.setItem('userData', JSON.stringify(userData));
+        localStorage.setItem('userRole', formData.userType);
+
+        // Store token in cookie
+        document.cookie = `token=${userData.token}; path=/`;
+
+        console.log('Stored user data:', userData);
+        console.log('Current user type:', formData.userType);
+
+        // Immediate navigation without setTimeout
         if (formData.userType === 'doctor') {
-          console.log('Navigating to doctor dashboard');
+          console.log('Redirecting to doctor dashboard...');
           navigate('/doctor-dashboard', { replace: true });
         } else {
-          console.log('Navigating to patient dashboard');
+          console.log('Redirecting to patient dashboard...');
           navigate('/patient-dashboard', { replace: true });
         }
+
+        // Clear any existing errors
+        setError('');
+        
+        // Clear form data
+        setFormData({
+          email: '',
+          password: '',
+          rememberMe: false,
+          userType: 'patient'
+        });
+
       } else {
-        setError(response.data.message || 'Login failed. Please check your credentials.');
+        throw new Error(response.data.message || 'Login failed');
       }
     } catch (error) {
-      console.error('Login error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
+      console.log('Login error:', error.message);
       
+      // Handle specific error cases
       if (error.response?.status === 401) {
-        setError('Invalid email or password. Please try again.');
+        setError('Invalid email or password');
+      } else if (error.response?.data?.message) {
+        setError(error.response.data.message);
       } else if (error.message === 'Network Error') {
-        setError('Unable to connect to server. Please check if the server is running.');
+        setError('Network error. Please check your connection.');
       } else {
-        setError(error.response?.data?.message || 'An error occurred during login. Please try again.');
+        setError('Login failed. Please try again.');
       }
     }
   };

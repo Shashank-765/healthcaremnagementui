@@ -24,6 +24,8 @@ const PatientsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     const handleResize = () => {
@@ -104,13 +106,21 @@ const PatientsList = () => {
     setShowAllPatients(!showAllPatients);
   };
 
-  // Fetch patients data with filter
+  const formatDate = (dateString) => {
+    if (!dateString || dateString === "Not Admitted") return "Not Admitted";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      // Build query parameters
       const queryParams = new URLSearchParams();
-      if (searchQuery.trim()) {  // Only add if search query is not empty
+      if (searchQuery.trim()) {
         queryParams.append('fullName', searchQuery.trim());
       }
 
@@ -121,24 +131,38 @@ const PatientsList = () => {
       });
       
       if (response.data.success) {
-        // Map the response data to match your table structure
         const formattedPatients = response.data.data.map(patient => ({
           _id: patient._id,
-          name: patient.fullName,
-          email: patient.email,
-          admitDate: patient.admitDate,
-          condition: patient.medicalCondition,
-          room: patient.roomNumber,
-          doctor: patient.assignedDoctor,
+          name: patient.name || patient.fullName || 'N/A',
+          email: patient.email || 'N/A',
+          admitDate: formatDate(patient.admitDate),
+          condition: patient.condition || patient.medicalCondition || 'Not Specified',
+          room: patient.room || patient.roomNumber || 'Not Assigned',
+          doctor: patient.doctor || patient.assignedDoctor || 'Not Assigned',
+          isAdded: patient.isAdded
         }));
         
         setPatients(formattedPatients);
+        setError(null);
       } else {
-        setError(response.data.message || 'Failed to fetch patients data');
+        // Check for specific IPFS errors
+        if (response.data.message?.includes("IPFS") || response.data.message?.includes("defaultCID")) {
+          setPatients([]);
+          setError("Database initialization required. Please add a patient to initialize the system.");
+        } else {
+          setError(response.data.message || 'Failed to fetch patients data');
+        }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch patients data');
       console.error('Error fetching patients:', err);
+      // Handle specific IPFS errors
+      if (err.response?.data?.message?.includes("IPFS") || 
+          err.response?.data?.message?.includes("defaultCID")) {
+        setPatients([]);
+        setError("Database initialization required. Please add a patient to initialize the system.");
+      } else {
+        setError('Unable to fetch patients data. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }
@@ -199,6 +223,36 @@ const PatientsList = () => {
     } catch (err) {
       console.error('Error deleting patient:', err.message);
       // Handle error (show message to user)
+    }
+  };
+
+  const handleTransferToAddPatient = async (patient) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/admin/transfer-patient-signup`,
+        {
+          patientEmail: patient.email
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Remove the transferred patient from the list
+        setPatients(patients.filter(p => p.email !== patient.email));
+        alert('Patient transferred successfully to Add Patient collection');
+      } else {
+        // Show error popup if patient already exists
+        setErrorMessage(response.data.message || 'Patient already exists in Add Patient collection');
+        setShowErrorPopup(true);
+      }
+    } catch (error) {
+      console.error('Error transferring patient:', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to transfer patient');
+      setShowErrorPopup(true);
     }
   };
 
@@ -316,9 +370,26 @@ const PatientsList = () => {
             Loading patients...
           </div>
         ) : error ? (
-          <div className="error-message">
-            <i className="fas fa-exclamation-circle"></i>
-            {error}
+          <div className="error-message" style={{ textAlign: 'center', padding: '20px' }}>
+            <i className="fas fa-exclamation-circle" style={{ color: '#ff6b6b', marginRight: '10px' }}></i>
+            <p style={{ margin: '10px 0' }}>{error}</p>
+            {error.includes("No patient records found") && (
+              <button 
+                onClick={() => navigate('/admin/add-patient')} 
+                style={{
+                  background: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginTop: '10px'
+                }}
+              >
+                <i className="fas fa-plus" style={{ marginRight: '5px' }}></i>
+                Add New Patient
+              </button>
+            )}
           </div>
         ) : (
           <div className="patients-table">
@@ -342,23 +413,35 @@ const PatientsList = () => {
                 </thead>
                 <tbody>
                   {patients.slice(0, showAllPatients ? patients.length : 3).map(patient => (
-                    <tr key={patient._id}>
-                      <td>{patient.name}</td>
-                      <td>{patient.email}</td>
-                      <td>{patient.admitDate}</td>
-                      <td>{patient.condition}</td>
-                      <td>{patient.room}</td>
-                      <td>{patient.doctor}</td>
+                    <tr key={patient._id} className={patient.isAdded ? 'added-patient' : 'signup-patient'}>
+                      <td>{patient.name || 'N/A'}</td>
+                      <td>{patient.email || 'N/A'}</td>
+                      <td>{patient.admitDate || 'Not Admitted'}</td>
+                      <td>{patient.condition || 'Not Specified'}</td>
+                      <td>{patient.room || 'Not Assigned'}</td>
+                      <td>{patient.doctor || 'Not Assigned'}</td>
                       <td>
                         <button className="view-btn" onClick={() => handleView(patient)}>
                           <i className="fas fa-eye"></i>
                         </button>
-                        <button className="edit-btn" onClick={() => handleEdit(patient)}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button className="delete-btn" onClick={() => handleDelete(patient)}>
-                          <i className="fas fa-trash"></i>
-                        </button>
+                        {patient.isAdded ? (
+                          <>
+                            <button className="edit-btn" onClick={() => handleEdit(patient)}>
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button className="delete-btn" onClick={() => handleDelete(patient)}>
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </>
+                        ) : (
+                          <button 
+                            className="transfer-btn" 
+                            onClick={() => handleTransferToAddPatient(patient)}
+                            title="Transfer to Hospital Records"
+                          >
+                            <i className="fas fa-exchange-alt"></i>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -496,6 +579,25 @@ const PatientsList = () => {
               <div className="popup-footer">
                 <button className="delete-confirm-btn" onClick={handleDeleteConfirm}>Delete</button>
                 <button className="cancel-btn" onClick={() => setShowDeletePopup(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showErrorPopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <div className="popup-header">
+              <h3>Error</h3>
+              <button className="close-btn" onClick={() => setShowErrorPopup(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="popup-body">
+              <p>{errorMessage}</p>
+              <div className="popup-footer">
+                <button className="ok-btn" onClick={() => setShowErrorPopup(false)}>OK</button>
               </div>
             </div>
           </div>

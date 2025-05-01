@@ -23,8 +23,7 @@ const AddPatient = () => {
     medicalDocument: '',
     roomNumber: '',
     assignedDoctor: '',
-    medicalHistory: '',
-    insuranceInformation: ''
+    medicalHistory: ''
   });
 
   // Handle window resize
@@ -118,8 +117,7 @@ const AddPatient = () => {
         medicalDocument: patientForm.medicalDocument,
         roomNumber: parseInt(patientForm.roomNumber),
         assignedDoctor: patientForm.assignedDoctor,
-        medicalHistory: patientForm.medicalHistory,
-        insuranceInformation: patientForm.insuranceInformation
+        medicalHistory: patientForm.medicalHistory
       };
 
       console.log('Sending patient data:', patientData);
@@ -423,21 +421,6 @@ const AddPatient = () => {
                 placeholder="Enter medical history"
                 required
               ></textarea>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <i className="fas fa-file-invoice"></i>
-                Insurance Information
-              </label>
-              <input
-                type="text"
-                name="insuranceInformation"
-                value={patientForm.insuranceInformation}
-                onChange={handleInputChange}
-                placeholder="Enter insurance details"
-                required
-              />
             </div>
 
             <div className="form-actions">

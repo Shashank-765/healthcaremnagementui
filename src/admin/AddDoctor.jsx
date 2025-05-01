@@ -192,7 +192,7 @@ const AddDoctor = () => {
       alert('Doctor added successfully!');
       navigate('/admin/doctors');
     } catch (error) {
-      console.error('Error adding doctor:', error.message);
+      console.log('Error adding doctor:', error.message);
       if (error.message.includes('token')) {
         // Clear all auth cookies
         Cookies.remove('token');

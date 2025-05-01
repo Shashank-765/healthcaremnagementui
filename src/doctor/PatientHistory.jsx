@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './PatientHistory.css';
 import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const PatientHistory = () => {
   const navigate = useNavigate();
@@ -14,60 +17,37 @@ const PatientHistory = () => {
   const [showAllRecords, setShowAllRecords] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPatientHistory, setNewPatientHistory] = useState({
+    patientId: '',
+    doctorId: '',
+    condition: '',
+    notes: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [patientHistories, setPatientHistories] = useState([]);
+  const [error, setError] = useState('');
 
-  // Sample data - replace with your actual data
-  const patientHistoryData = [
-    {
-      patientId: "P001",
-      patientName: "John Doe",
-      visitDate: "2024-02-20",
-      visitTime: "10:00 AM",
-      recoveryDate: "2024-02-27",
-      department: "Cardiology"
-    },
-    {
-      patientId: "P002",
-      patientName: "Jane Smith",
-      visitDate: "2024-02-19",
-      visitTime: "11:30 AM",
-      recoveryDate: "2024-02-26",
-      department: "Neurology"
-    },
-    {
-      patientId: "P003",
-      patientName: "Mike Johnson",
-      visitDate: "2024-02-18",
-      visitTime: "2:15 PM",
-      recoveryDate: "2024-02-25",
-      department: "Orthopedics"
-    },
-    {
-      patientId: "P004",
-      patientName: "Sarah Williams",
-      visitDate: "2024-02-17",
-      visitTime: "9:45 AM",
-      recoveryDate: "2024-02-24",
-      department: "Pediatrics"
-    },
-    {
-      patientId: "P005",
-      patientName: "Robert Brown",
-      visitDate: "2024-02-16",
-      visitTime: "3:30 PM",
-      recoveryDate: "2024-02-23",
-      department: "Dermatology"
-    },
-    {
-      patientId: "P006",
-      patientName: "Emily Davis",
-      visitDate: "2024-02-15",
-      visitTime: "1:00 PM",
-      recoveryDate: "2024-02-22",
-      department: "ENT"
+  useEffect(() => {
+    fetchPatientHistories();
+  }, []);
+
+  const fetchPatientHistories = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/medical-history/all`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setPatientHistories(response.data.data);
+    } catch (error) {
+      setError('Failed to fetch patient histories');
+      console.log('Error fetching patient histories:', error.message);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const displayedRecords = showAllRecords ? patientHistoryData : patientHistoryData.slice(0, 3);
+  };
 
   const handleDeleteClick = (patient) => {
     setSelectedPatient(patient);
@@ -105,6 +85,37 @@ const PatientHistory = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleCreateHistory = () => {
+    setShowCreateModal(true);
+  };
+
+  const handleSaveNewHistory = async () => {
+    try {
+      setLoading(true);
+      await axios.post(`${API_URL}/api/v1/medical-history/medical-create`, newPatientHistory, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setShowCreateModal(false);
+      fetchPatientHistories();
+      // Reset form
+      setNewPatientHistory({
+        patientId: '',
+        doctorId: '',
+        condition: '',
+        notes: ''
+      });
+    } catch (error) {
+      setError('Failed to create patient history');
+      console.error('Error creating patient history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayedRecords = showAllRecords ? patientHistories : patientHistories.slice(0, 3);
+
   return (
     <div className="dashboard-container">
       <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
@@ -129,48 +140,66 @@ const PatientHistory = () => {
                 <i className="fas fa-search"></i>
                 <input type="text" placeholder="Search patient history..."/>
               </div>
+              <button 
+                className="create-history-btn"
+                onClick={handleCreateHistory}
+              >
+                <i className="fas fa-plus"></i> Create Patient History
+              </button>
             </div>
           </div>
           <div className="table-responsive">
             <table className="patient-history-table">
               <thead>
                 <tr>
-                  <th>Patient ID</th>
                   <th>Patient Name</th>
-                  <th>Department</th>
-                  <th>Visit Date</th>
-                  <th>Visit Time</th>
-                  <th>Recovery Date</th>
+                  <th>Doctor Name</th>
+                  <th>Condition</th>
+                  <th>Notes</th>
+                  <th>Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedRecords.map((record, index) => (
-                  <tr key={index}>
-                    <td>{record.patientId}</td>
-                    <td>{record.patientName}</td>
-                    <td>{record.department}</td>
-                    <td>{record.visitDate}</td>
-                    <td>{record.visitTime}</td>
-                    <td>{record.recoveryDate}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="action-btn view"
-                          onClick={() => handleViewClick(record)}
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                        <button 
-                          className="action-btn delete"
-                          onClick={() => handleDeleteClick(record)}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="text-center">Loading...</td>
                   </tr>
-                ))}
+                ) : error ? (
+                  <tr>
+                    <td colSpan="6" className="text-center text-red-500">{error}</td>
+                  </tr>
+                ) : patientHistories.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center">No patient histories found</td>
+                  </tr>
+                ) : (
+                  displayedRecords.map((history) => (
+                    <tr key={history._id}>
+                      <td>{history.patientId?.fullName || 'N/A'}</td>
+                      <td>{history.doctorId?.fullName || 'N/A'}</td>
+                      <td>{history.condition}</td>
+                      <td>{history.notes}</td>
+                      <td>{new Date(history.date).toLocaleDateString()}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className="action-btn view"
+                            onClick={() => handleViewClick(history)}
+                          >
+                            <i className="fas fa-eye"></i>
+                          </button>
+                          <button 
+                            className="action-btn delete"
+                            onClick={() => handleDeleteClick(history)}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -194,7 +223,7 @@ const PatientHistory = () => {
         <div className="modal-overlay">
           <div className="modal-content view-modal">
             <div className="modal-header">
-              <h3>{editMode ? 'Edit Patient Record' : 'Patient Details'}</h3>
+              <h3>{editMode ? 'Edit Medical History' : 'Medical History Details'}</h3>
               <button 
                 className="close-btn"
                 onClick={handleCancelEdit}
@@ -205,50 +234,54 @@ const PatientHistory = () => {
             <div className="modal-body">
               <form className="patient-form">
                 <div className="form-group">
-                  <label>Patient ID</label>
-                  <input 
-                    type="text" 
-                    value={selectedPatient?.patientId} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
                   <label>Patient Name</label>
                   <input 
                     type="text" 
-                    value={selectedPatient?.patientName} 
-                    disabled={!editMode}
+                    value={selectedPatient?.patientId?.fullName || 'N/A'} 
+                    disabled
                   />
                 </div>
                 <div className="form-group">
-                  <label>Department</label>
+                  <label>Doctor Name</label>
                   <input 
                     type="text" 
-                    value={selectedPatient?.department} 
+                    value={selectedPatient?.doctorId?.fullName || 'N/A'} 
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Condition</label>
+                  <input 
+                    type="text" 
+                    value={selectedPatient?.condition} 
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      condition: e.target.value
+                    })}
                     disabled={!editMode}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Visit Date</label>
+                  <label>Notes</label>
+                  <textarea 
+                    value={selectedPatient?.notes} 
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      notes: e.target.value
+                    })}
+                    disabled={!editMode}
+                    rows={4}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Date</label>
                   <input 
                     type="date" 
-                    value={selectedPatient?.visitDate} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Visit Time</label>
-                  <input 
-                    type="time" 
-                    value={selectedPatient?.visitTime} 
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Recovery Date</label>
-                  <input 
-                    type="date" 
-                    value={selectedPatient?.recoveryDate} 
+                    value={selectedPatient?.date?.split('T')[0]} 
+                    onChange={(e) => setSelectedPatient({
+                      ...selectedPatient,
+                      date: e.target.value
+                    })}
                     disabled={!editMode}
                   />
                 </div>
@@ -275,8 +308,9 @@ const PatientHistory = () => {
                   <button 
                     className="save-btn"
                     onClick={handleSaveEdit}
+                    disabled={loading}
                   >
-                    Save Changes
+                    {loading ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button 
                     className="cancel-btn"
@@ -306,8 +340,8 @@ const PatientHistory = () => {
             </div>
             <div className="modal-body">
               <p>Are you sure you want to delete this record?</p>
-              <p><strong>Patient:</strong> {selectedPatient?.patientName}</p>
-              <p><strong>Visit Date:</strong> {selectedPatient?.visitDate}</p>
+              <p><strong>Patient:</strong> {selectedPatient?.patientId?.fullName}</p>
+              <p><strong>Date:</strong> {selectedPatient?.date ? new Date(selectedPatient.date).toLocaleDateString() : 'N/A'}</p>
             </div>
             <div className="modal-footer">
               <button 
@@ -321,6 +355,97 @@ const PatientHistory = () => {
                 onClick={handleConfirmDelete}
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Patient History Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="modal-content view-modal">
+            <div className="modal-header">
+              <h3>Create Medical History</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <form className="patient-form">
+                <div className="form-group">
+                  <label>Patient ID</label>
+                  <input 
+                    type="text" 
+                    value={newPatientHistory.patientId}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      patientId: e.target.value
+                    })}
+                    placeholder="Enter Patient ID"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Doctor ID</label>
+                  <input 
+                    type="text" 
+                    value={newPatientHistory.doctorId}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      doctorId: e.target.value
+                    })}
+                    placeholder="Enter Doctor ID"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Condition</label>
+                  <input 
+                    type="text" 
+                    value={newPatientHistory.condition}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      condition: e.target.value
+                    })}
+                    placeholder="e.g., High Blood Pressure"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea 
+                    value={newPatientHistory.notes}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      notes: e.target.value
+                    })}
+                    placeholder="Enter patient notes"
+                    required
+                    rows={3}
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="save-btn"
+                onClick={handleSaveNewHistory}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Medical History'}
+              </button>
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../doctor/DoctorDashboard.css';
 import bannerImage from '../image/banner.png';
@@ -6,40 +6,103 @@ import doctorImage from '../image/girl.png';
 import logoImage from '../image/logo.png';
 import Navbar from '../component/Navbar';
 import Sidebar from '../component/Sidebar';
-
-const patientHistoryData = [
-  {
-    patientId: "P001",
-    patientName: "John Doe",
-    visitDate: "2024-02-20",
-    visitTime: "10:00 AM",
-    recoveryDate: "2024-02-27",
-    department: "Cardiology"
-  },
-  {
-    patientId: "P002",
-    patientName: "Jane Smith",
-    visitDate: "2024-02-19",
-    visitTime: "11:30 AM",
-    recoveryDate: "2024-02-26",
-    department: "Neurology"
-  },
-  {
-    patientId: "P003",
-    patientName: "Mike Johnson",
-    visitDate: "2024-02-18",
-    visitTime: "2:15 PM",
-    recoveryDate: "2024-02-25",
-    department: "Orthopedics"
-  }
-];
-
+import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const [expandedItem, setExpandedItem] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [dashboardData, setDashboardData] = useState({
+    totalAppointments: 0,
+    totalPatients: 0,
+    totalHospital: '50+',
+    recentAppointments: [],
+    patientHistory: [],
+    doctorInfo: {}
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const userRole = localStorage.getItem('userRole');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    
+    try {
+      const parsedUserData = userData ? JSON.parse(userData) : null;
+      console.log('Parsed User Data:', parsedUserData);
+      
+      if (!parsedUserData || !parsedUserData.token || parsedUserData.role !== 'doctor') {
+        console.log('No valid user data or wrong role, redirecting to login');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('userRole');
+        navigate('/', { replace: true });
+        return;
+      }
+
+      // If we reach here, user is authenticated and is a doctor
+      console.log('User authenticated as doctor');
+
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      localStorage.removeItem('userData');
+      localStorage.removeItem('userRole');
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const token = userData.token;
+        
+        if (!token || userData.role !== 'doctor') {
+          setError('Please login as a doctor to view dashboard');
+          setLoading(false);
+          navigate('/', { replace: true });
+          return;
+        }
+
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const doctorId = tokenPayload.id;
+
+        if (!doctorId) {
+          setError('Doctor ID not found in token');
+          setLoading(false);
+          return;
+        }
+
+        console.log('Fetching dashboard data for doctor:', doctorId);
+
+        const response = await axios.get(`${API_URL}/doctor/dashboard/${doctorId}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.data.success) {
+          setDashboardData(response.data.data);
+        } else {
+          setError(response.data.message || 'Failed to load dashboard');
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError('Error loading dashboard');
+        if (err.response?.status === 401) {
+          localStorage.clear();
+          navigate('/', { replace: true });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('userRole');
@@ -111,6 +174,28 @@ const DoctorDashboard = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <div className="loading-spinner">
+          <i className="fas fa-spinner fa-spin"></i>
+          Loading dashboard data...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-container">
+        <div className="error-message">
+          <i className="fas fa-exclamation-circle"></i>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
@@ -136,7 +221,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="doc-stat-info">
               <h4>Total Appointments</h4>
-              <p className="doc-stat-number">15</p>
+              <p className="doc-stat-number">{dashboardData.totalAppointments}</p>
               <small className="doc-stat-text doc-positive">Next: Tomorrow</small>
             </div>
           </div>
@@ -146,7 +231,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="doc-stat-info">
               <h4>Total Patients</h4>
-              <p className="doc-stat-number">8</p>
+              <p className="doc-stat-number">{dashboardData.totalPatients}</p>
               <small className="doc-stat-text doc-neutral">Last Week</small>
             </div>
           </div>
@@ -156,7 +241,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="doc-stat-info">
               <h4>Total Hospital</h4>
-              <p className="doc-stat-number">50+</p>
+              <p className="doc-stat-number">{dashboardData.totalHospital}</p>
               <small className="doc-stat-text doc-attention">View All</small>
             </div>
           </div>
@@ -179,26 +264,25 @@ const DoctorDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>John Doe</td>
-                    <td>10:00 AM</td>
-                    <td><span className="status-badge confirmed">Confirmed</span></td>
-                  </tr>
-                  <tr>
-                    <td>Jane Smith</td>
-                    <td>11:30 AM</td>
-                    <td><span className="status-badge pending">Pending</span></td>
-                  </tr>
-                  <tr>
-                    <td>Mike Johnson</td>
-                    <td>2:00 PM</td>
-                    <td><span className="status-badge confirmed">Confirmed</span></td>
-                  </tr>
-                  <tr>
-                    <td>Sarah Williams</td>
-                    <td>3:30 PM</td>
-                    <td><span className="status-badge pending">Pending</span></td>
-                  </tr>
+                  {dashboardData.recentAppointments && dashboardData.recentAppointments.length > 0 ? (
+                    dashboardData.recentAppointments.map((appointment, index) => (
+                      <tr key={index}>
+                        <td>{appointment.patientName}</td>
+                        <td>{appointment.time}</td>
+                        <td>
+                          <span className={`status-badge ${appointment.status.toLowerCase()}`}>
+                            {appointment.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" className="no-appointments">
+                        No recent appointments
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -217,8 +301,8 @@ const DoctorDashboard = () => {
                 {weeklyStats.map((stat) => (
                   <div key={stat.day} className="stat-bar-container">
                     <div className="stat-bar-wrapper">
-                      <div 
-                        className="stat-bar" 
+                      <div
+                        className="stat-bar"
                         style={{ height: `${(stat.value / 25) * 100}%` }}
                       >
                         <span className="stat-value">{stat.value}</span>
@@ -231,89 +315,6 @@ const DoctorDashboard = () => {
             </div>
           </div>
         </div>
-
-        <div className="doc-stats-grid">
-          <div className="doc-stat-card">
-            <div className="doc-stat-icon">
-            <i className="fas fa-user-md"></i>
-            </div>
-            <div className="doc-stat-info">
-              <h4>Surgery Schedule</h4>
-              <div className="info-list-compact">
-                    <p><i className="fas fa-calendar-alt"></i> Next: Tomorrow, 9:00 AM</p>
-                    <p><i className="fas fa-clock"></i> Duration: 2 hours</p>
-                    <p><i className="fas fa-hospital"></i> Room: OR-3</p>
-                    <div className="status-tags">
-                      <span className="status-badge confirmed">Available</span>
-                      <span className="status-badge pending">In Surgery</span>
-                    </div>
-                  </div>
-            </div>
-          </div>
-          <div className="doc-stat-card">
-                <div className="doc-stat-icon">
-                  <i className="fas fa-clock"></i>
-                </div>
-                <div className="doc-stat-info">
-                  <h4>Consultation Hours</h4>
-                  <div className="info-list-compact">
-                    <p><i className="fas fa-sun"></i> Morning: 9:00 AM - 1:00 PM</p>
-                    <p><i className="fas fa-moon"></i> Evening: 4:00 PM - 8:00 PM</p>
-                    <p><i className="fas fa-money-bill-wave"></i> Fee: $100</p>
-                    <div className="status-tags">
-                      <span className="status-badge confirmed">Accepting Patients</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="doc-stat-card">
-                <div className="doc-stat-icon">
-                  <i className="fas fa-heartbeat"></i>
-                </div>
-                <div className="doc-stat-info">
-                  <h4>Available Services</h4>
-                  <div className="info-list-compact">
-                    <p><i className="fas fa-heart"></i> Cardiac Consultation</p>
-                    <p><i className="fas fa-stethoscope"></i> General Check-up</p>
-                    <p><i className="fas fa-file-medical"></i> Medical Reports</p>
-                    <div className="status-tags">
-                      <span className="status-badge confirmed">24/7 Available</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              </div>
-        <div className="patient-history-preview">
-          <div className="section-header">
-            <h2>Recent Patient History</h2>
-          </div>
-                <div className="table-responsive">
-                  <table className="patient-history-table">
-                    <thead>
-                      <tr>
-                        <th>Patient ID</th>
-                        <th>Patient Name</th>
-                        <th>Visit Date</th>
-                        <th>Visit Time</th>
-                        <th>Department</th>
-                        <th>Recovery Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {patientHistoryData.map((record, index) => (
-                        <tr key={index}>
-                          <td>{record.patientId}</td>
-                          <td>{record.patientName}</td>
-                          <td>{record.visitDate}</td>
-                          <td>{record.visitTime}</td>
-                          <td>{record.department}</td>
-                          <td>{record.recoveryDate}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-            </div>
       </div>
     </div>
   );

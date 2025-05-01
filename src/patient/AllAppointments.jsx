@@ -5,6 +5,7 @@ import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
+import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
@@ -21,84 +22,88 @@ const AllAppointments = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Fetch appointments when component mounts
+  // Add authentication check
   useEffect(() => {
-    fetchAppointments();
-  }, []);
+    const checkAuthAndFetchData = async () => {
+      try {
+        const userData = localStorage.getItem('userData');
+        const parsedUserData = userData ? JSON.parse(userData) : null;
+        console.log('Parsed User Data:', parsedUserData);
+        
+        if (!parsedUserData || !parsedUserData.token || !parsedUserData._id || parsedUserData.role !== 'patient') {
+          console.log('No valid user data or wrong role');
+          setError('Please log in again from the patient dashboard');
+          navigate('/patient-dashboard', { replace: true });
+          return;
+        }
 
-  const fetchAppointments = async () => {
+        console.log('User authenticated as patient with ID:', parsedUserData._id);
+        await fetchAppointments(parsedUserData);
+      } catch (error) {
+        console.error('Error in authentication check:', error);
+        setError('Error checking authentication');
+        navigate('/patient-dashboard', { replace: true });
+      }
+    };
+
+    checkAuthAndFetchData();
+  }, [navigate]);
+
+  const fetchAppointments = async (userData) => {
     try {
       setLoading(true);
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      console.log('User Data from localStorage:', userData);
+      setError('');
 
-      if (!userData) {
-        setError('Please login to view appointments');
+      if (!userData || !userData.token || !userData.email || !userData._id) {
+        setError('Authentication data missing');
         setLoading(false);
+        navigate('/patient-dashboard', { replace: true });
         return;
       }
 
-      const token = userData.token;
-      console.log('Token:', token);
-
-      if (!token) {
-        setError('Authentication token missing');
-        setLoading(false);
-        return;
-      }
-
-      // Get patient email from user data
-      const patientEmail = userData.email;
-      console.log('Patient Email:', patientEmail);
-
-      if (!patientEmail) {
-        console.log('User Data Structure:', userData);
-        setError('Patient email not found in user data');
-        setLoading(false);
-        return;
-      }
-
-      // Encode the email for the URL
-      const encodedEmail = encodeURIComponent(patientEmail);
-      console.log('Encoded Email:', encodedEmail);
-
-      // Log the complete request details
-      const requestUrl = `${API_URL}/appointment/patient?patientEmail=${encodedEmail}`;
-      console.log('Making request to:', requestUrl);
-      console.log('Request headers:', {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+      console.log('Making request with:', {
+        token: userData.token,
+        email: userData.email,
+        userId: userData._id
       });
 
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.get(
+        `${API_URL}/appointment/patient?patientEmail=${encodeURIComponent(userData.email)}&patientId=${userData._id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
         }
-      });
+      );
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('API Response:', response.data);
 
-      if (response.status === 401) {
-        const errorData = await response.json();
-        console.log('Error response:', errorData);
-        setError('Session expired. Please login again.');
-        return;
-      }
-
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (data.success) {
-        setAppointments(data.data);
+      if (response.data.success) {
+        setAppointments(response.data.data || []);
       } else {
-        setError(data.message || 'Failed to fetch appointments');
+        setError(response.data.message || 'Failed to fetch appointments');
       }
     } catch (error) {
-      console.error('Error details:', error);
-      setError('Error fetching appointments. Please try again.');
+      console.error('Error fetching appointments:', error);
+      
+      if (error.response) {
+        console.log('Error response:', error.response);
+        console.log('Error status:', error.response.status);
+        console.log('Error data:', error.response.data);
+
+        if (error.response.status === 401) {
+          setError('Unable to fetch appointments. Please try again.');
+          navigate('/patient-dashboard', { replace: true });
+        } else {
+          setError(error.response.data?.message || 'Error loading appointments');
+        }
+      } else if (error.request) {
+        setError('No response received from server');
+      } else {
+        setError('Error loading appointments');
+      }
     } finally {
       setLoading(false);
     }
@@ -110,7 +115,8 @@ const AllAppointments = () => {
   );
 
   const handleLogout = () => {
-    navigate('/');
+    localStorage.removeItem('userData');
+    navigate('/patient-dashboard', { replace: true });
   };
 
   const handleView = (appointment) => {
@@ -126,30 +132,37 @@ const AllAppointments = () => {
 
   const handleDelete = async (appointment) => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const token = userData.token;
-      if (!token) {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      if (!userData || !userData.token) {
         setError('Please login to delete appointments');
+        navigate('/patient-dashboard', { replace: true });
         return;
       }
 
-      const response = await fetch(`${API_URL}/appointment/delete-appointment/id/${appointment._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const response = await axios.delete(
+        `${API_URL}/appointment/delete-appointment/id/${appointment._id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        fetchAppointments();
+      );
+
+      if (response.data.success) {
+        await fetchAppointments(userData);
         setShowDeleteModal(false);
       } else {
-        setError(data.message || 'Failed to delete appointment');
+        setError(response.data.message || 'Failed to delete appointment');
       }
     } catch (error) {
-      setError('Error deleting appointment. Please try again.');
-      console.error('Error:', error);
+      console.error('Delete error:', error);
+      if (error.response?.status === 401) {
+        setError('Session expired. Please try again from dashboard.');
+        navigate('/patient-dashboard', { replace: true });
+      } else {
+        setError('Error deleting appointment. Please try again.');
+      }
     }
   };
 
@@ -178,7 +191,7 @@ const AllAppointments = () => {
       
       if (data.success) {
         // Refresh appointments list
-        fetchAppointments();
+        fetchAppointments(JSON.parse(localStorage.getItem('userData')));
     setShowEditModal(false);
       } else {
         setError(data.message || 'Failed to update appointment');
@@ -256,7 +269,10 @@ const AllAppointments = () => {
           <div className="card-content">
             {error && <div className="error-message">{error}</div>}
             {loading ? (
-              <div className="loading">Loading appointments...</div>
+              <div className="loading-spinner">
+                <i className="fas fa-spinner fa-spin"></i>
+                Loading appointments...
+              </div>
             ) : (
             <table className="appointments-table">
               <thead>
