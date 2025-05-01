@@ -1074,3 +1074,48 @@
 div.header-left{
   margin-left:10px;
 }
+.stats-grid-insurance{
+  display:flex;
+}
+
+.table-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.view {
+  color: #007bff;
+}
+
+.action-btn.permission-on {
+  color: #28a745;
+}
+
+.action-btn.permission-off {
+  color: #dc3545;
+}
+
+.verification-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.verification-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '../patient/Allappointments.css';
 import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
@@ -15,65 +15,29 @@ const AllAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // Add authentication check
-  useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      try {
-        const userData = localStorage.getItem('userData');
-        const parsedUserData = userData ? JSON.parse(userData) : null;
-        console.log('Parsed User Data:', parsedUserData);
-        
-        if (!parsedUserData || !parsedUserData.token || !parsedUserData._id || parsedUserData.role !== 'patient') {
-          console.log('No valid user data or wrong role');
-          setError('Please log in again from the patient dashboard');
-          navigate('/patient-dashboard', { replace: true });
-          return;
-        }
-
-        console.log('User authenticated as patient with ID:', parsedUserData._id);
-        await fetchAppointments(parsedUserData);
-      } catch (error) {
-        console.error('Error in authentication check:', error);
-        setError('Error checking authentication');
-        navigate('/patient-dashboard', { replace: true });
-      }
-    };
-
-    checkAuthAndFetchData();
-  }, [navigate]);
 
   const fetchAppointments = async (userData) => {
     try {
       setLoading(true);
       setError('');
 
-      if (!userData || !userData.token || !userData.email || !userData._id) {
-        setError('Authentication data missing');
+      if (!userData || !userData.token) {
+        setError('Authentication data missing. Please log in.');
         setLoading(false);
         navigate('/patient-dashboard', { replace: true });
         return;
       }
 
-      console.log('Making request with:', {
-        token: userData.token,
-        email: userData.email,
-        userId: userData._id
-      });
-
       const response = await axios.get(
-        `${API_URL}/appointment/patient?patientEmail=${encodeURIComponent(userData.email)}&patientId=${userData._id}`,
+        `${API_URL}/appointment/patient`,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -88,53 +52,38 @@ const AllAppointments = () => {
     } catch (error) {
       console.error('Error fetching appointments:', error);
       
-      if (error.response) {
-        console.log('Error response:', error.response);
-        console.log('Error status:', error.response.status);
-        console.log('Error data:', error.response.data);
-
-        if (error.response.status === 401) {
-          setError('Unable to fetch appointments. Please try again.');
-          navigate('/patient-dashboard', { replace: true });
-        } else {
-          setError(error.response.data?.message || 'Error loading appointments');
-        }
-      } else if (error.request) {
-        setError('No response received from server');
+      if (error.response?.status === 401) {
+        setError('Session expired. Please log in again.');
+        navigate('/patient-dashboard', { replace: true });
       } else {
-        setError('Error loading appointments');
+        setError(error.response?.data?.message || 'Error loading appointments');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    if (userData) {
+      fetchAppointments(userData);
+    } else {
+      setError('Please log in to view appointments');
+      setLoading(false);
+      navigate('/patient-dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   // Filter appointments based on search query
-  const filteredAppointments = appointments.filter(appointment =>
+  const filteredAppointments = appointments.filter((appointment) =>
     appointment.doctorId?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleLogout = () => {
-    localStorage.removeItem('userData');
-    navigate('/patient-dashboard', { replace: true });
-  };
-
-  const handleView = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowViewModal(true);
-  };
-
-  const handleEdit = (appointment) => {
-    setSelectedAppointment(appointment);
-    setEditFormData(appointment);
-    setShowEditModal(true);
-  };
 
   const handleDelete = async (appointment) => {
     try {
       const userData = JSON.parse(localStorage.getItem('userData'));
       if (!userData || !userData.token) {
-        setError('Please login to delete appointments');
+        setError('Please log in to delete appointments');
         navigate('/patient-dashboard', { replace: true });
         return;
       }
@@ -166,40 +115,9 @@ const AllAppointments = () => {
     }
   };
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Please login to update appointments');
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/appointment/update-status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          patientName: editFormData.patientId.fullName,
-          doctorName: editFormData.doctorId.fullName,
-          status: editFormData.status
-        })
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        // Refresh appointments list
-        fetchAppointments(JSON.parse(localStorage.getItem('userData')));
-    setShowEditModal(false);
-      } else {
-        setError(data.message || 'Failed to update appointment');
-      }
-    } catch (error) {
-      setError('Error updating appointment. Please try again.');
-      console.error('Error:', error);
-    }
+  const handleView = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowViewModal(true);
   };
 
   const toggleSidebar = () => {
@@ -238,7 +156,7 @@ const AllAppointments = () => {
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={toggleSidebar}
         />
-        {/* Banner */}
+        
         <div className="patient-banner" style={{ backgroundImage: `url(${bannerImage})` }}>
           <div className="banner-content">
             <div className="doctor-profile">
@@ -247,7 +165,7 @@ const AllAppointments = () => {
             <h1>YOUR HEALTH IS<br />OUR PRIORITY</h1>
           </div>
         </div>
-        {/* Appointments Card */}
+
         <div className="dashboard-card2">
           <div className="card-header">
             <h3>
@@ -273,46 +191,53 @@ const AllAppointments = () => {
                 <i className="fas fa-spinner fa-spin"></i>
                 Loading appointments...
               </div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="no-appointments">
+                No appointments found
+              </div>
             ) : (
-            <table className="appointments-table">
-              <thead>
-                <tr>
-                  <th>Doctor</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.map(appointment => (
+              <table className="appointments-table">
+                <thead>
+                  <tr>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAppointments.map((appointment) => (
                     <tr key={appointment._id}>
-                      <td>Dr. {appointment.doctorId?.fullName}</td>
+                      <td>Dr. {appointment.doctorId?.fullName || 'N/A'}</td>
                       <td>{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
                       <td>{appointment.appointmentTime}</td>
-                    <td>
+                      <td>
                         <span className={`status-badge ${appointment.status?.toLowerCase()}`}>
-                        {appointment.status}
-                      </span>
-                    </td>
-                    <td className="action-buttons">
-                      <button 
-                        className="action-btn view"
-                        onClick={() => handleView(appointment)}
-                      >
-                        <i className="fas fa-eye"></i>
-                      </button>
-                      <button 
-                        className="action-btn delete"
-                        onClick={() => { setSelectedAppointment(appointment); setShowDeleteModal(true); }}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {appointment.status}
+                        </span>
+                      </td>
+                      <td className="action-buttons">
+                        <button 
+                          className="action-btn view"
+                          onClick={() => handleView(appointment)}
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button 
+                          className="action-btn delete"
+                          onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setShowDeleteModal(true);
+                          }}
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -330,7 +255,7 @@ const AllAppointments = () => {
             </div>
             <div className="modal-body">
               <div className="appointment-details">
-                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'N/A'}</p>
                 <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
                 <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
                 <p><strong>Status:</strong> 
@@ -338,7 +263,7 @@ const AllAppointments = () => {
                     {selectedAppointment.status}
                   </span>
                 </p>
-                <p><strong>Reason:</strong> {selectedAppointment.reason}</p>
+                <p><strong>Reason:</strong> {selectedAppointment.reason || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -358,13 +283,17 @@ const AllAppointments = () => {
             <div className="modal-body">
               <p>Are you sure you want to delete this appointment?</p>
               <div className="appointment-summary">
-                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'N/A'}</p>
                 <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
                 <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
               </div>
               <div className="modal-footer">
-                <button className="delete-btn" onClick={() => handleDelete(selectedAppointment)}>Yes, Delete</button>
-                <button className="cancel-btn" onClick={() => setShowDeleteModal(false)}>No, Cancel</button>
+                <button className="delete-btn" onClick={() => handleDelete(selectedAppointment)}>
+                  Yes, Delete
+                </button>
+                <button className="cancel-btn" onClick={() => setShowDeleteModal(false)}>
+                  No, Cancel
+                </button>
               </div>
             </div>
           </div>
@@ -374,4 +303,4 @@ const AllAppointments = () => {
   );
 };
 
-export default AllAppointments; 
+export default AllAppointments;

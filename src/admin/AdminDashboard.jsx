@@ -129,7 +129,13 @@ const AdminDashboard = () => {
         { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
         { label: 'Pending Appointments', path: '/admin/pending-appointments' }
       ]
-    }
+    },
+    {
+      id: 'patient history',
+      icon: 'fas fa-user-injured',
+      label: 'patient history',
+      path: '/admin/admin-dashboard'
+    },
   ];
 
   const handleMenuClick = (item) => {

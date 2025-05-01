@@ -19,32 +19,6 @@ const BookAppointmentForm = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Add authentication check
-  useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      try {
-        const userData = localStorage.getItem('userData');
-        const parsedUserData = userData ? JSON.parse(userData) : null;
-        console.log('Parsed User Data:', parsedUserData);
-        
-        if (!parsedUserData || !parsedUserData.token || !parsedUserData._id || parsedUserData.role !== 'patient') {
-          console.log('No valid user data or wrong role');
-          setError('Please log in again from the patient dashboard');
-          navigate('/patient-dashboard', { replace: true });
-          return;
-        }
-
-        console.log('User authenticated as patient with ID:', parsedUserData._id);
-      } catch (error) {
-        console.error('Error in authentication check:', error);
-        setError('Error checking authentication');
-        navigate('/patient-dashboard', { replace: true });
-      }
-    };
-
-    checkAuthAndFetchData();
-  }, [navigate]);
-
   // Fetch doctors when department changes
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -113,11 +87,11 @@ const BookAppointmentForm = () => {
     try {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}');
       
-      if (!userData.token || !userData._id || !userData.email) {
-        setError('Authentication required. Please try again.');
-        setLoading(false);
-        return;
-      }
+      // if (!userData.token || !userData._id || !userData.email) {
+      //   setError('Authentication required. Please try again.');
+      //   setLoading(false);
+      //   return;
+      // }
 
       const appointmentData = {
         ...formData,

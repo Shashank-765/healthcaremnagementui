@@ -32,7 +32,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
   };
 
   const handleSubmenuClick = (path) => {
-    // Don't close the appointments menu when clicking submenu items
+    setActiveItem(path === '/book-appointment' ? 'book-appointment' : 'all-appointments');
     navigate(path);
   };
 
@@ -91,14 +91,14 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
                   <>
                     <li 
                       onClick={() => handleSubmenuClick('/all-appointments')}
-                      className="submenu-item"
+                      className={`submenu-item ${activeItem === 'all-appointments' ? 'active' : ''}`}
                     >
                       <i className="fas fa-list-alt"></i>
                       All Appointments
                     </li>
                     <li 
                       onClick={() => handleSubmenuClick('/book-appointment')}
-                      className="submenu-item"
+                      className={`submenu-item ${activeItem === 'book-appointment' ? 'active' : ''}`}
                     >
                       <i className="fas fa-calendar-plus"></i>
                       Book Appointment
