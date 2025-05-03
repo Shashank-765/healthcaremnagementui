@@ -1,50 +1,164 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
 import Cookies from 'js-cookie';
+import axios from 'axios';
 
-// Dummy data for patients
-const dummyPatients = [
-  {
-    _id: '1',
-    patient: {
-      name: 'John Doe',
-      phone: '123-456-7890',
-      email: 'john.doe@example.com',
-    },
-    hasPermission: true,
-    isVerified: false
-  },
-  {
-    _id: '2',
-    patient: {
-      name: 'Jane Smith',
-      phone: '098-765-4321',
-      email: 'jane.smith@example.com',
-    },
-    hasPermission: true,
-    isVerified: true
-  },
-  {
-    _id: '3',
-    patient: {
-      name: 'Alice Johnson',
-      phone: '555-555-5555',
-      email: 'alice.johnson@example.com',
-    },
-    hasPermission: false,
-    isVerified: false
-  },
-];
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-const PatientList = () => {
+const InsurancePatientList = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState(dummyPatients);
+  const [patients, setPatients] = useState([]);
   const [expandedItem, setExpandedItem] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showViewPopup, setShowViewPopup] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [showAccessRequestPopup, setShowAccessRequestPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [medicalHistory, setMedicalHistory] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [showRequestSentPopup, setShowRequestSentPopup] = useState(false);
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      const token = Cookies.get('token');
+      const response = await axios.get(`${API_URL}/insurance/patients-with-medical-history`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setPatients(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMedicalHistory = async (patientName) => {
+    try {
+      setLoading(true);
+      const token = Cookies.get('token');
+      const response = await axios.get(`${API_URL}/insurance/patient-medical-history/${encodeURIComponent(patientName)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setMedicalHistory(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching medical history:', error);
+      setMedicalHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewPatient = async (patient) => {
+    if (!patient.hasAccess) {
+      return; // Don't allow viewing if no access
+    }
+    setSelectedPatient(patient);
+    await fetchMedicalHistory(patient.name);
+    setShowViewPopup(true);
+  };
+
+  const handleAccessRequest = (patient) => {
+    if (patient.hasAccess) {
+      alert('You already have access for this patient');
+      return;
+    }
+    setSelectedPatient(patient);
+    setShowAccessRequestPopup(true);
+  };
+
+  const handlePermissionToggle = async (patientId) => {
+    try {
+      const token = Cookies.get('token');
+      const response = await axios.post(
+        `${API_URL}/insurance/request-access`,
+        {
+          patientName: patients.find(p => p._id === patientId)?.name
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Refresh the patients list
+        await fetchPatients();
+      }
+    } catch (error) {
+      // Check for the specific backend error message
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message &&
+        error.response.data.message.toLowerCase().includes('already pending')
+      ) {
+        setShowRequestSentPopup(true);
+      } else {
+        console.error('Error toggling permission:', error);
+      }
+    }
+  };
+
+  const handleVerificationToggle = async (patientId) => {
+    try {
+      const token = Cookies.get('token');
+      const patient = patients.find(p => p._id === patientId);
+      if (!patient) return;
+
+      const response = await axios.get(
+        `${API_URL}/insurance/verify-patient/${encodeURIComponent(patient.name)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Update local state
+        setPatients(prev => 
+          prev.map(p => 
+            p._id === patientId 
+              ? { ...p, isVerified: !p.isVerified } 
+              : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating verification:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    Cookies.remove('token');
+    navigate('/insurance/login');
+  };
+
+  const filteredPatients = patients.filter(patient => {
+    if (filter === 'withAccess') return patient.hasAccess;
+    if (filter === 'withoutAccess') return !patient.hasAccess;
+    return true;
+  });
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -58,9 +172,9 @@ const PatientList = () => {
       path: '/insurance/dashboard'
     },
     {
-      id: 'patientlist',
+      id: 'patientslist',
       icon: 'fas fa-user-injured',
-      label: 'patient list',
+      label: 'patientslist',
       path: '/insurance/patient-list'
     }
   ];
@@ -71,31 +185,6 @@ const PatientList = () => {
     } else {
       navigate(item.path);
     }
-  };
-
-  const handleViewPatient = (patient) => {
-    navigate(`/insurance/patient/${patient._id}`, { state: { patient } });
-  };
-
-  const handlePermissionToggle = (patientId) => {
-    setPatients(patients.map(patient => 
-      patient._id === patientId 
-        ? { ...patient, hasPermission: !patient.hasPermission }
-        : patient
-    ));
-  };
-
-  const handleVerificationToggle = (patientId) => {
-    setPatients(patients.map(patient => 
-      patient._id === patientId 
-        ? { ...patient, isVerified: !patient.isVerified }
-        : patient
-    ));
-  };
-
-  const handleLogout = () => {
-    Cookies.remove('token');
-    navigate('/insurance/login');
   };
 
   return (
@@ -173,58 +262,182 @@ const PatientList = () => {
           </div>
         </div>
 
+        {/* Filter Section */}
+        <div className="filter-section">
+          <select 
+            value={filter} 
+            onChange={(e) => setFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Patients</option>
+            <option value="withAccess">With Access</option>
+            <option value="withoutAccess">Without Access</option>
+          </select>
+        </div>
+
         {/* Patient List Table */}
         <div className="appointments-table-container">
-      <h4>Patient List</h4>
-        <table className="appointments-table">
-          <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Phone Number</th>
-              <th>Email</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-              {patients.map((patient) => (
-                <tr key={patient._id}>
-                  <td>{patient.patient?.name || 'N/A'}</td>
-                  <td>{patient.patient?.phone || 'N/A'}</td>
-                  <td>{patient.patient?.email || 'N/A'}</td>
-                <td>
-                  <div className="table-actions">
-                    <button
-                      className="action-btn view"
-                      title="View Details"
-                        onClick={() => handleViewPatient(patient)}
-                    >
-                      <i className="fas fa-eye"></i>
-                    </button>
-                      <button
-                        className={`action-btn ${patient.hasPermission ? 'permission-on' : 'permission-off'}`}
-                        title={patient.hasPermission ? 'Disable Permission' : 'Enable Permission'}
-                        onClick={() => handlePermissionToggle(patient._id)}
-                      >
-                        <i className={`fas fa-${patient.hasPermission ? 'toggle-on' : 'toggle-off'}`}></i>
-                      </button>
-                      <div className="verification-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={patient.isVerified}
-                          onChange={() => handleVerificationToggle(patient._id)}
-                          title="Insurance Verification"
-                        />
+          <h4>Patient List</h4>
+          {loading ? (
+            <div className="loading-spinner">Loading...</div>
+          ) : (
+            <table className="appointments-table">
+              <thead>
+                <tr>
+                  <th>Patient Name</th>
+                  <th>Phone Number</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPatients.map((patient) => (
+                  <tr key={patient._id}>
+                    <td>{patient.name}</td>
+                    <td>{patient.phone}</td>
+                    <td>{patient.email}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className={`action-btn view ${!patient.hasAccess ? 'disabled' : ''}`}
+                          title={patient.hasAccess ? "View Medical History" : "No Access"}
+                          onClick={() => handleViewPatient(patient)}
+                          disabled={!patient.hasAccess}
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button
+                          className={`action-btn request ${patient.hasAccess || patient.requestPending ? 'disabled' : ''}`}
+                          title={patient.hasAccess ? "Already have access" : patient.requestPending ? "Request Already Sent" : "Request Access"}
+                          onClick={() => {
+                            if (patient.hasAccess) return;
+                            if (patient.requestPending) {
+                              setShowRequestSentPopup(true);
+                              return;
+                            }
+                            handleAccessRequest(patient);
+                          }}
+                          disabled={patient.hasAccess || patient.requestPending}
+                        >
+                          <i className={`fas fa-hand-paper ${patient.hasAccess ? 'text-success' : ''}`}></i>
+                        </button>
+                        <div className="verification-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={patient.isVerified}
+                            onChange={() => handleVerificationToggle(patient._id)}
+                            title="Verify Insurance"
+                            disabled={!patient.hasAccess}
+                          />
+                        </div>
                       </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
+
+        {/* View Popup */}
+        {showViewPopup && selectedPatient && (
+          <div className="popup-overlay">
+            <div className="popup-content">
+              <div className="popup-header">
+                <h3>Patient Medical History</h3>
+                <button className="close-btn" onClick={() => setShowViewPopup(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="popup-body">
+                {loading ? (
+                  <div className="loading-spinner">Loading...</div>
+                ) : medicalHistory.length > 0 ? (
+                  <table className="medical-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Doctor</th>
+                        <th>Condition</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {medicalHistory.map((record, index) => (
+                        <tr key={index}>
+                          <td>{new Date(record.date).toLocaleDateString()}</td>
+                          <td>{record.doctorName}</td>
+                          <td>{record.condition}</td>
+                          <td>{record.notes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No medical history available</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Access Request Popup */}
+        {showAccessRequestPopup && selectedPatient && (
+          <div className="popup-overlay">
+            <div className="popup-content">
+              <div className="popup-header">
+                <h3>Request Access</h3>
+                <button className="close-btn" onClick={() => setShowAccessRequestPopup(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="popup-body">
+                <p>Requesting access to view medical history for:</p>
+                <p><strong>{selectedPatient.name}</strong></p>
+                <div className="popup-actions">
+                  <button 
+                    className="cancel-btn"
+                    onClick={() => setShowAccessRequestPopup(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="submit-btn"
+                    onClick={async () => {
+                      try {
+                        await handlePermissionToggle(selectedPatient._id);
+                        setShowAccessRequestPopup(false);
+                      } catch (error) {
+                        console.error('Error sending access request:', error);
+                      }
+                    }}
+                  >
+                    Send Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRequestSentPopup && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3>Request Already Sent</h3>
+                <button className="close-btn" onClick={() => setShowRequestSentPopup(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>A request for this patient is already pending.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default PatientList;
+export default InsurancePatientList;

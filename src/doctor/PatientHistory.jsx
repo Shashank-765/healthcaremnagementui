@@ -8,7 +8,6 @@ import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
 const PatientHistory = () => {
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -16,28 +15,32 @@ const PatientHistory = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showAllRecords, setShowAllRecords] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [editHistory, setEditHistory] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPatientHistory, setNewPatientHistory] = useState({
-    patientId: '',
-    doctorId: '',
+    patientEmail: '',
+    doctorEmail: '',
     condition: '',
     notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [patientHistories, setPatientHistories] = useState([]);
   const [error, setError] = useState('');
-
+  
   useEffect(() => {
     fetchPatientHistories();
+   
   }, []);
 
   const fetchPatientHistories = async () => {
-    try {
+    try { 
       setLoading(true);
-      const response = await axios.get(`${API_URL}/medical-history/all`, {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const email = userData?.email; // or userData?._id
+      const response = await axios.get(`${API_URL}/medical-history/personal-history/${email}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${userData.token}`
         }
       });
       setPatientHistories(response.data.data);
@@ -66,14 +69,56 @@ const PatientHistory = () => {
     setEditMode(false);
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = (history) => {
+    setSelectedPatient(history);
+    setEditHistory({
+      condition: history.condition,
+      notes: history.notes
+    });
+    setShowViewModal(true);
     setEditMode(true);
   };
 
-  const handleSaveEdit = () => {
-    // Add your save logic here
-    setEditMode(false);
-    setShowViewModal(false);
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditHistory(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      setLoading(true);
+      console.log('Selected patient for edit:', selectedPatient._id);
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const email = userData?.email;
+      const response = await axios.put(
+        `${API_URL}/medical-history/edit/${selectedPatient._id}`,
+        {
+          condition: editHistory.condition,
+          notes: editHistory.notes
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      if (response.data.success) {
+        setShowViewModal(false);
+        setEditMode(false);
+        fetchPatientHistories();
+        alert('Medical history updated successfully!');
+      } else {
+        setError(response.data.message);
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to update medical history');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -92,29 +137,70 @@ const PatientHistory = () => {
   const handleSaveNewHistory = async () => {
     try {
       setLoading(true);
-      await axios.post(`${API_URL}/api/v1/medical-history/medical-create`, newPatientHistory, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      console.log("Full userData:", userData);
+
+      if (!userData || !userData.token || !userData.email) {
+        setError('Not authenticated. Please login again.');
+        return;
+      }
+
+      if (!newPatientHistory.patientEmail || !newPatientHistory.condition || !newPatientHistory.notes) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      const historyData = {
+        patientEmail: newPatientHistory.patientEmail.trim().toLowerCase(),
+        doctorEmail: userData.email.trim().toLowerCase(),
+        condition: newPatientHistory.condition.trim(),
+        notes: newPatientHistory.notes.trim(),
+        date: new Date()
+      };
+
+      console.log("Sending history data:", historyData);
+
+      const response = await axios.post(
+        `${API_URL}/medical-history/medical-create`, 
+        historyData,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
-      setShowCreateModal(false);
-      fetchPatientHistories();
-      // Reset form
-      setNewPatientHistory({
-        patientId: '',
-        doctorId: '',
-        condition: '',
-        notes: ''
-      });
+      );
+
+      if (response.data.success) {
+        setShowCreateModal(false);
+        fetchPatientHistories();
+        setNewPatientHistory({
+          patientEmail: '',
+          condition: '',
+          notes: ''
+        });
+        // Show success message
+        alert('Medical history created successfully!');
+      } else {
+        setError(response.data.message);
+      }
     } catch (error) {
-      setError('Failed to create patient history');
-      console.error('Error creating patient history:', error);
+      console.error('Full error details:', error.response?.data);
+      if (error.response?.status === 401) {
+        // Handle unauthorized error
+        localStorage.clear(); // Clear invalid credentials
+        navigate('/medical-history'); // Redirect to login
+        setError('Session expired. Please login again.');
+      } else {
+        setError(error.response?.data?.message || 'Failed to create patient history');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const displayedRecords = showAllRecords ? patientHistories : patientHistories.slice(0, 3);
+     
 
   return (
     <div className="dashboard-container">
@@ -176,8 +262,8 @@ const PatientHistory = () => {
                 ) : (
                   displayedRecords.map((history) => (
                     <tr key={history._id}>
-                      <td>{history.patientId?.fullName || 'N/A'}</td>
-                      <td>{history.doctorId?.fullName || 'N/A'}</td>
+                      <td>{history.patientName || 'N/A'}</td>
+                      <td>{history.doctorName || 'N/A'}</td>
                       <td>{history.condition}</td>
                       <td>{history.notes}</td>
                       <td>{new Date(history.date).toLocaleDateString()}</td>
@@ -190,10 +276,10 @@ const PatientHistory = () => {
                             <i className="fas fa-eye"></i>
                           </button>
                           <button 
-                            className="action-btn delete"
-                            onClick={() => handleDeleteClick(history)}
+                            className="action-btn edit"
+                            onClick={() => handleEditClick(history)}
                           >
-                            <i className="fas fa-trash"></i>
+                            <i className="fas fa-pen"></i>
                           </button>
                         </div>
                       </td>
@@ -237,7 +323,7 @@ const PatientHistory = () => {
                   <label>Patient Name</label>
                   <input 
                     type="text" 
-                    value={selectedPatient?.patientId?.fullName || 'N/A'} 
+                    value={selectedPatient?.patientName || 'N/A'} 
                     disabled
                   />
                 </div>
@@ -245,30 +331,26 @@ const PatientHistory = () => {
                   <label>Doctor Name</label>
                   <input 
                     type="text" 
-                    value={selectedPatient?.doctorId?.fullName || 'N/A'} 
+                    value={selectedPatient?.doctorName || 'N/A'} 
                     disabled
                   />
                 </div>
                 <div className="form-group">
                   <label>Condition</label>
                   <input 
-                    type="text" 
-                    value={selectedPatient?.condition} 
-                    onChange={(e) => setSelectedPatient({
-                      ...selectedPatient,
-                      condition: e.target.value
-                    })}
+                    type="text"
+                    name="condition"
+                    value={editMode ? editHistory?.condition : selectedPatient?.condition}
+                    onChange={editMode ? handleEditChange : undefined}
                     disabled={!editMode}
                   />
                 </div>
                 <div className="form-group">
                   <label>Notes</label>
                   <textarea 
-                    value={selectedPatient?.notes} 
-                    onChange={(e) => setSelectedPatient({
-                      ...selectedPatient,
-                      notes: e.target.value
-                    })}
+                    name="notes"
+                    value={editMode ? editHistory?.notes : selectedPatient?.notes}
+                    onChange={editMode ? handleEditChange : undefined}
                     disabled={!editMode}
                     rows={4}
                   />
@@ -290,32 +372,16 @@ const PatientHistory = () => {
             <div className="modal-footer">
               {!editMode ? (
                 <>
-                  <button 
-                    className="edit-btn"
-                    onClick={handleEditClick}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    className="cancel-btn"
-                    onClick={handleCancelEdit}
-                  >
+                  <button className="cancel-btn" onClick={() => setShowViewModal(false)}>
                     Close
                   </button>
                 </>
               ) : (
                 <>
-                  <button 
-                    className="save-btn"
-                    onClick={handleSaveEdit}
-                    disabled={loading}
-                  >
+                  <button className="save-btn" onClick={handleSaveEdit} disabled={loading}>
                     {loading ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button 
-                    className="cancel-btn"
-                    onClick={handleCancelEdit}
-                  >
+                  <button className="cancel-btn" onClick={() => setEditMode(false)}>
                     Cancel
                   </button>
                 </>
@@ -366,7 +432,7 @@ const PatientHistory = () => {
         <div className="modal-overlay">
           <div className="modal-content view-modal">
             <div className="modal-header">
-              <h3>Create Medical History</h3>
+              <h3>Create patient Medical History</h3>
               <button 
                 className="close-btn"
                 onClick={() => setShowCreateModal(false)}
@@ -377,29 +443,29 @@ const PatientHistory = () => {
             <div className="modal-body">
               <form className="patient-form">
                 <div className="form-group">
-                  <label>Patient ID</label>
+                  <label>Patient Email</label>
                   <input 
-                    type="text" 
-                    value={newPatientHistory.patientId}
+                    type="email" 
+                    value={newPatientHistory.patientEmail}
                     onChange={(e) => setNewPatientHistory({
                       ...newPatientHistory,
-                      patientId: e.target.value
+                      patientEmail: e.target.value
                     })}
-                    placeholder="Enter Patient ID"
+                    placeholder="Enter Patient Email"
                     required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Doctor ID</label>
+                  <label>Doctor Email</label>
                   <input 
-                    type="text" 
-                    value={newPatientHistory.doctorId}
+                    type="email" 
+                    value={newPatientHistory.doctorEmail}
                     onChange={(e) => setNewPatientHistory({
                       ...newPatientHistory,
-                      doctorId: e.target.value
+                      doctorEmail: e.target.value
                     })}
-                    placeholder="Enter Doctor ID"
+                    placeholder="Enter Doctor Email"
                     required
                   />
                 </div>

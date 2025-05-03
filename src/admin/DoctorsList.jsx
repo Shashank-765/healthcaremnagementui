@@ -42,7 +42,9 @@ const DoctorsList = () => {
   // Fetch doctors data with filters
   const fetchDoctors = async () => {
     try {
-      const token = Cookies.get('token');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;   
+      console.log('Token:', token); 
       if (!token) {
         navigate('/admin/login');
         return;
@@ -151,6 +153,12 @@ const DoctorsList = () => {
         { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
         { label: 'Pending Appointments', path: '/admin/pending-appointments' }
       ]
+    },
+    {
+      id: 'patient history',
+      icon: 'fas fa-user-injured',
+      label: 'patient history',
+      path: '/admin/history-list'
     }
   ];
 
@@ -163,6 +171,7 @@ const DoctorsList = () => {
   };
 
   const handleLogout = () => {
+    Cookies.remove('adminToken');
     navigate('/');
   };
 
@@ -234,7 +243,7 @@ const DoctorsList = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = Cookies.get('token');
+      const token = Cookies.get('adminToken');
       if (!token) {
         navigate('/admin/login');
         return;
@@ -284,7 +293,7 @@ const DoctorsList = () => {
   // Update handleTransferToAddDoctor function
   const handleTransferToAddDoctor = async (doctor) => {
     try {
-      const token = Cookies.get('token');
+      const token = Cookies.get('adminToken');
       if (!token) {
         navigate('/admin/login');
         return;
@@ -333,7 +342,7 @@ const DoctorsList = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      const token = Cookies.get('token');
+      const token = Cookies.get('adminToken');
       if (!token) {
         navigate('/admin/login');
         return;
@@ -508,8 +517,8 @@ const DoctorsList = () => {
                 <tr>
                   <th>Full Name</th>
                   <th>Specialization</th>
-                  {/* <th>Experience</th>
-                  <th>Availability</th> */}
+                  <th>Experience</th>
+                 {/*  <th>Availability</th> */}
                   <th>Contact Number</th>
                   <th>Email</th>
                   <th>Actions</th>
@@ -520,9 +529,9 @@ const DoctorsList = () => {
                   <tr key={doctor._id}>
                     <td>{doctor.fullName}</td>
                     <td>{doctor.specialization}</td>
-                    {/* <td>{doctor.Experience}</td>
-                    <td>{doctor.Availability || 'Not specified'}</td> */}
-                    <td>{doctor.contactNumber || 'Not specified'}</td>
+                   <td>{doctor.experience}</td>
+                    {/*  <td>{doctor.Availability || 'Not specified'}</td> */}
+                    <td>{doctor.contactnumber || 'Not specified'}</td>
                     <td>{doctor.email || 'Not specified'}</td>
                     <td className="action-buttons">
                       <button className="view-btn" onClick={() => handleView(doctor)}>
@@ -623,10 +632,8 @@ const DoctorsList = () => {
                       <option value="">Select Specialization</option>
                       <option value="Cardiologist">Cardiologist</option>
                       <option value="Neurologist">Neurologist</option>
-                      <option value="Pediatrician">Pediatrician</option>
                       <option value="Dermatologist">Dermatologist</option>
                       <option value="Orthopedic">Orthopedic</option>
-                      <option value="Gynecologist">Gynecologist</option>
                     </select>
                   </div>
                   <div className="form-group">

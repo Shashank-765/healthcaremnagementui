@@ -48,10 +48,7 @@ const TotalAppointments = () => {
         return;
       }
 
-      const doctorFullName = "vaibhavdoctor";
-      console.log('Making API request for doctor:', doctorFullName);
-
-      const response = await axios.get(`${API_URL}/appointment/appointments/${doctorFullName}`, {
+      const response = await axios.get(`${API_URL}/appointment/my-appointments`, {
         headers: {
           'Authorization': `Bearer ${userData.token}`,
           'Content-Type': 'application/json'
@@ -101,8 +98,8 @@ const TotalAppointments = () => {
 
   // Filter appointments based on search term
   const filteredAppointments = appointments.filter(appointment => 
-    appointment.patientId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.patientId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appointment.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    appointment.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     appointment.status?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -232,9 +229,9 @@ const TotalAppointments = () => {
               <tbody>
                   {displayedAppointments.map((appointment) => (
                     <tr key={appointment._id}>
-                      <td>{appointment.patientId?.fullName}</td>
-                      <td>{appointment.patientId?.email}</td>
-                      <td>{formatDateTime(appointment.appointmentDate, appointment.appointmentTime)}</td>
+                      <td>{appointment.patientName}</td>
+                      <td>{appointment.email}</td>
+                      <td>{appointment.dateTime}</td>
                       <td>
                         <select 
                           value={appointment.status}

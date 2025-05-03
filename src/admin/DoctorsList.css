@@ -174,9 +174,6 @@
   transition: color 0.3s ease;
 }
 
-.user-icon:hover {
-  color: #007bff;
-}
 
 .user-dropdown {
   position: absolute;

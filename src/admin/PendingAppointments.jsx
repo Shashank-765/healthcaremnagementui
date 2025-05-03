@@ -62,7 +62,13 @@ const PendingAppointments = () => {
         { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
         { label: 'Pending Appointments', path: '/admin/pending-appointments' }
       ]
-    }
+    },
+    {
+      id: 'patient history',
+      icon: 'fas fa-user-injured',
+      label: 'patient history',
+      path: '/admin/history-list'
+    },
   ];
 
   // Fetch pending appointments
@@ -71,9 +77,9 @@ const PendingAppointments = () => {
       try {
         setLoading(true);
         // Use Cookies instead of localStorage
-        const token = Cookies.get('token');
-        
-        if (!token) {
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        const token = userData?.token;   
+         if (!token) {
           navigate('/admin/login');
           return;
         }
@@ -153,13 +159,14 @@ const PendingAppointments = () => {
   };
 
   const handleLogout = () => {
-    Cookies.remove('token');
+    Cookies.remove('adminToken');
     navigate('/');
   };
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
-      const token = Cookies.get('token');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;
       if (!token) {
         navigate('/admin/login');
         return;

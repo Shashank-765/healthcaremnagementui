@@ -580,9 +580,6 @@
   font-size: 1.5rem;
 }
 
-.user-icon:hover {
-  background-color: var(--hover-blue);
-}
 
 .user-dropdown {
   position: absolute;

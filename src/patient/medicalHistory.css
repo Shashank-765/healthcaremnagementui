@@ -463,3 +463,93 @@
     font-size: 14px;
   }
 }
+
+/* Loading Spinner */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #4a90e2;
+}
+
+.loading-spinner i {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.loading-spinner span {
+  font-size: 1rem;
+  color: #666;
+}
+
+/* Error Message */
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background-color: #fff3f3;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  color: #d32f2f;
+}
+
+.error-message i {
+  font-size: 1.2rem;
+}
+
+/* No Records */
+.no-records-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.no-records {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+}
+
+.no-records i {
+  font-size: 2rem;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+.no-records span {
+  font-size: 1rem;
+}
+
+/* Table Responsive Container */
+.table-responsive {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin: 20px;
+}
+
+/* Make sure you have Font Awesome included in your project */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');

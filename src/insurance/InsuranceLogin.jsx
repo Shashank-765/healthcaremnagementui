@@ -41,70 +41,46 @@ const InsuranceLogin = () => {
         return;
       }
 
+      console.log('Sending login request to:', `${API_URL}/insurance/insurance-login`);
+      console.log('Request body:', { email: formData.email, password: formData.password });
+
       // Make login request
       const response = await fetch(`${API_URL}/insurance/insurance-login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData),
-        credentials: 'include',
-        mode: 'cors'
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
       });
 
       console.log('Response status:', response.status);
-
       const data = await response.json();
-      console.log('Login response:', JSON.stringify(data, null, 2));
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Check for token
-      const token = data.token;
-      if (!token) {
-        console.error('No token found in response:', data);
+      // Store the token and user data
+      if (data.token) {
+        Cookies.set('token', data.token, { expires: 1 }); // Token expires in 1 day
+        Cookies.set('userRole', 'insurance', { expires: 1 });
+        if (data.user) {
+          Cookies.set('userData', JSON.stringify(data.user), { expires: 1 });
+        }
+        
+        // Navigate to dashboard on success
+        navigate('/insurance/dashboard');
+      } else {
         throw new Error('No token received from server');
       }
-
-      // Store the token and user data in cookies
-      Cookies.set('token', token, { 
-        expires: 30,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      Cookies.set('userRole', 'insurance', {
-        expires: 30,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      const userId = data.user?._id;
-      if (userId) {
-        Cookies.set('userId', userId, {
-          expires: 30,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax'
-        });
-      }
-
-      // Verify cookies were set
-      const storedToken = Cookies.get('token');
-      console.log('Stored token:', storedToken);
-
-      if (!storedToken) {
-        throw new Error('Failed to store token');
-      }
-
-      console.log('Login successful, redirecting to dashboard');
-      navigate('/insurance/dashboard');
     } catch (error) {
       console.error('Login error:', error);
       if (error.message === 'Failed to fetch') {
-        setError('Unable to connect to server. Please make sure the server is running at http://localhost:5000');
+        setError('Unable to connect to server. Please check if the server is running.');
       } else {
         setError(error.message || 'Login failed. Please try again.');
       }

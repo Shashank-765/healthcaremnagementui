@@ -51,8 +51,8 @@ const Signup = () => {
 
   const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
   const specializations = [
-    "Cardiology", "Neurology", "Pediatrics", "Orthopedics", 
-    "Dermatology", "ENT", "General Medicine"
+    "Cardiology", "Neurology", "Orthopedics", 
+    "Dermatology", "General Medicine"
   ];
 
   const validatePhoneNumber = (number) => {

@@ -98,34 +98,35 @@ const InsuranceSignup = () => {
     }
 
     try {
-      // Prepare the data according to backend requirements
-      const adminData = {
-        fullName: formData.name,
-        email: formData.email,
-        password: formData.password,
-        contactNumber: formData.phone,
-        companyName: formData.companyName,
-        role: formData.role,
-        image: formData.profilePhoto ? formData.profilePhoto.name : null,
-      };
+      // Create FormData object to handle file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('password', formData.password);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('companyName', formData.companyName);
+      formDataToSend.append('role', formData.role);
+      if (formData.profilePhoto) {
+        formDataToSend.append('image', formData.profilePhoto);
+      }
 
-   
-   
-// Check if the response is JSON
-   
-     
+      const response = await fetch(`${API_URL}/insurance/insurance-signup`, {
+        method: 'POST',
+        body: formDataToSend
+      });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
 
       // Success case
       alert('Registration successful! Please login to continue.');
       navigate('/insurance/login');
     } catch (error) {
       console.error('Registration error:', error);
-      if (error.message === 'Server returned non-JSON response') {
-        alert('Server error: Please check if the backend server is running and the API endpoint is correct.');
-      } else {
-        alert(error.message || 'Registration failed. Please try again.');
-      }
+      alert(error.message || 'Registration failed. Please try again.');
     }
   };
 

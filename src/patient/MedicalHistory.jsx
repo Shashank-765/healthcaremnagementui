@@ -6,6 +6,7 @@ import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
+import { FaEye } from 'react-icons/fa';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -16,11 +17,13 @@ const MedicalHistory = () => {
   const [error, setError] = useState(null);
   const [medicalHistory, setMedicalHistory] = useState([]);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/');
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    if (!userData?.token) {
+      navigate('/patient-dashboard');
       return;
     }
     fetchMedicalHistory();
@@ -29,15 +32,15 @@ const MedicalHistory = () => {
   const fetchMedicalHistory = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      if (!userData?.token) {
+        navigate('/patient-dashboard');
         return;
       }
 
       const response = await axios.get(`${API_URL}/medical-history/patient/history`, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${userData.token}`
         }
       });
 
@@ -50,7 +53,7 @@ const MedicalHistory = () => {
       console.error('Error fetching medical history:', error);
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
-        navigate('/');
+        navigate('/patient-dashboard');
       } else {
         setError(error.response?.data?.message || 'Failed to fetch medical history');
       }
@@ -68,6 +71,45 @@ const MedicalHistory = () => {
   };
 
   const displayedHistory = showAllHistory ? medicalHistory : medicalHistory.slice(0, 5);
+
+  const handleViewRecord = (record) => {
+    setSelectedRecord(record);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedRecord(null);
+  };
+
+  const ViewModal = ({ record, onClose }) => {
+    if (!record) return null;
+
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h2>Medical Record Details</h2>
+            <button className="close-btn" onClick={onClose}>&times;</button>
+          </div>
+          <div className="modal-body">
+            <div className="record-detail">
+              <strong>Doctor Name:</strong> {record.doctorId?.fullName || 'N/A'}
+            </div>
+            <div className="record-detail">
+              <strong>Condition:</strong> {record.condition || 'N/A'}
+            </div>
+            <div className="record-detail">
+              <strong>Notes:</strong> {record.notes || 'N/A'}
+            </div>
+            <div className="record-detail">
+              <strong>Date:</strong> {new Date(record.date).toLocaleDateString() || 'N/A'}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="dashboard-container">
@@ -91,11 +133,26 @@ const MedicalHistory = () => {
           </div>
           <div className="table-responsive">
             {loading ? (
-              <div className="loading">Loading...</div>
+              <div className="loading-container">
+                <div className="loading-spinner">
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Loading medical history data...</span>
+                </div>
+              </div>
             ) : error ? (
-              <div className="error">{error}</div>
+              <div className="error-container">
+                <div className="error-message">
+                  <i className="fas fa-exclamation-circle"></i>
+                  <span>{error}</span>
+                </div>
+              </div>
             ) : medicalHistory.length === 0 ? (
-              <div className="no-records">No medical history records found</div>
+              <div className="no-records-container">
+                <div className="no-records">
+                  <i className="fas fa-folder-open"></i>
+                  <span>No medical history records found</span>
+                </div>
+              </div>
             ) : (
               <>
                 <table className="medical-history-table">
@@ -105,8 +162,7 @@ const MedicalHistory = () => {
                       <th>Condition</th>
                       <th>Notes</th>
                       <th>Date</th>
-                      <th>Medications</th>
-                      <th>Follow-up Date</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -116,8 +172,14 @@ const MedicalHistory = () => {
                         <td>{record.condition || 'N/A'}</td>
                         <td>{record.notes || 'N/A'}</td>
                         <td>{new Date(record.date).toLocaleDateString() || 'N/A'}</td>
-                        <td>{record.medications || 'N/A'}</td>
-                        <td>{record.followUpDate ? new Date(record.followUpDate).toLocaleDateString() : 'N/A'}</td>
+                        <td>
+                          <button 
+                            className="view-btn"
+                            onClick={() => handleViewRecord(record)}
+                          >
+                            <FaEye />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -136,6 +198,7 @@ const MedicalHistory = () => {
           </div>
         </div>
       </div>
+      {showModal && <ViewModal record={selectedRecord} onClose={closeModal} />}
     </div>
   );
 };

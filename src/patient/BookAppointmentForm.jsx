@@ -44,9 +44,14 @@ const BookAppointmentForm = () => {
         console.log('Doctors API Response:', response.data);
 
         if (response.data.success) {
-          const filteredDoctors = response.data.data.doctors.filter(doctor => 
-            doctor.specialization.toLowerCase() === formData.department.toLowerCase()
-          );
+          const filteredDoctors = response.data.data.doctors.filter(doctor => {
+            if (!doctor || !doctor.specialization) {
+              console.warn('Doctor or specialization is missing:', doctor);
+              return false;
+            }
+            return doctor.specialization.toLowerCase() === formData.department.toLowerCase();
+          });
+
           console.log('Filtered doctors:', filteredDoctors);
           setDoctors(filteredDoctors);
           setError('');
@@ -80,64 +85,69 @@ const BookAppointmentForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
-
     try {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      
-      // if (!userData.token || !userData._id || !userData.email) {
-      //   setError('Authentication required. Please try again.');
-      //   setLoading(false);
-      //   return;
-      // }
-
-      const appointmentData = {
-        ...formData,
-        patientEmail: userData.email,
-        patientId: userData._id
-      };
-
-      const response = await axios.post(
-        `${API_URL}/appointment/create`,
-        appointmentData,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.token) {
+            setError('Please log in to book an appointment');
+            return;
         }
-      );
 
-      console.log('Appointment Response:', response.data);
-
-      if (response.data.success) {
-        setSuccess('Appointment booked successfully!');
-        // Clear form
-        setFormData({
-          department: '',
-          doctorId: '',
-          appointmentDate: '',
-          appointmentTime: '',
-          reason: ''
+        console.log('Sending appointment request:', {
+            department: formData.department,
+            doctorId: formData.doctorId,
+            appointmentDate: formData.appointmentDate,
+            appointmentTime: formData.appointmentTime,
+            reason: formData.reason
         });
-        // Redirect to appointments list after 2 seconds
-        setTimeout(() => {
-          navigate('/all-appointments');
-        }, 1000);
-      } else {
-        setError(response.data.message || 'Failed to book appointment');
-      }
+
+        const response = await axios.post(
+            `${API_URL}/appointment/create`,
+            {
+                department: formData.department,
+                doctorId: formData.doctorId,
+                appointmentDate: formData.appointmentDate,
+                appointmentTime: formData.appointmentTime,
+                reason: formData.reason
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${userData.token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        console.log('Server response:', response.data);
+
+        if (response.data.success) {
+            setSuccess('Appointment booked successfully!');
+            // Clear form
+            setFormData({
+                department: '',
+                doctorId: '',
+                appointmentDate: '',
+                appointmentTime: '',
+                reason: ''
+            });
+            // Redirect to appointments list after 2 seconds
+            setTimeout(() => {
+                navigate('/all-appointments');
+            }, 1000);
+        } else {
+            setError(response.data.message || 'Failed to book appointment');
+        }
     } catch (error) {
-      console.error('Error booking appointment:', error);
-      if (error.response?.status === 401) {
-        setError('Session expired. Please try again.');
-      } else {
-        setError(error.response?.data?.message || 'Error booking appointment. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+        console.log('Error booking appointment:', error.message);
+        
+        if (error.response) {
+            // Server responded with error
+            setError(error.response.data.message || 'Failed to book appointment');
+        } else if (error.request) {
+            // No response received
+            setError('Cannot connect to server. Please check if server is running.');
+        } else {
+            setError('Error creating appointment. Please try again.');
+        }
     }
   };
 

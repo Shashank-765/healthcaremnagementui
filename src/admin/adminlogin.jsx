@@ -34,81 +34,46 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      // Validate required fields
       if (!formData.email || !formData.password) {
-        setError('Email and password are required');
-        setIsLoading(false);
-        return;
+        throw new Error('Email and password are required');
       }
 
-      console.log('Sending login request to:', `${API_URL}/admin/admin-login`);
-      console.log('Request data:', formData);
-
-      // Make login request
       const response = await fetch(`${API_URL}/admin/admin-login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData),
-        credentials: 'include',
-        mode: 'cors'
+        body: JSON.stringify(formData)
       });
 
-      console.log('Response status:', response.status);
-
       const data = await response.json();
-      console.log('Login response:', data);
-
+      
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Check if token exists in response data
-      if (!data.data || !data.data.token) {
-        console.error('No token in response:', data);
+      if (!data.data?.token) {
         throw new Error('No token received from server');
       }
 
-      // Store the token and user data in cookies
-      Cookies.set('token', data.data.token, { 
-        expires: 30,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      Cookies.set('userRole', 'admin', {
-        expires: 30,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      
-      if (data.data._id) {
-        Cookies.set('userId', data.data._id, {
-          expires: 30,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax'
-        });
-      }
+      // Store token in cookies
+      Cookies.set('adminToken', data.data.token, { expires: 7 }); // Token expires in 7 days
 
-      // Verify cookies were set
-      const storedToken = Cookies.get('token');
-      console.log('Stored token:', storedToken);
+      // Store user data in localStorage
+      const userData = {
+        id: data.data._id,
+        email: data.data.email,
+        role: 'admin',
+        token: data.data.token
+      };
+      localStorage.setItem('userData', JSON.stringify(userData));
 
-      if (!storedToken) {
-        throw new Error('Failed to store token');
-      }
-
-      console.log('Login successful, redirecting to dashboard');
+      // Navigate to dashboard
       navigate('/admin/admin-dashboard');
+      
     } catch (error) {
       console.error('Login error:', error);
-      if (error.message === 'Failed to fetch') {
-        setError('Unable to connect to server. Please make sure the server is running at http://localhost:5000');
-      } else {
-        setError(error.message || 'Login failed. Please try again.');
-      }
+      setError(error.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

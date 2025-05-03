@@ -8,7 +8,6 @@ import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
 import Navbar from '../component/Navbar';
-import Cookies from 'js-cookie';
 
 const API_URL = 'http://localhost:5000/api/v1';
 
@@ -134,7 +133,7 @@ const AdminDashboard = () => {
       id: 'patient history',
       icon: 'fas fa-user-injured',
       label: 'patient history',
-      path: '/admin/admin-dashboard'
+      path: '/admin/history-list'
     },
   ];
 
@@ -170,6 +169,7 @@ const AdminDashboard = () => {
 
   // Dashboard data
   const handleLogout = () => {
+    localStorage.removeItem('userData');
     navigate('/admin/login');
   };
 
@@ -216,8 +216,14 @@ const AdminDashboard = () => {
 
   const fetchAdminData = async () => {
     try {
-        const token = Cookies.get('token');
+        // Get token from localStorage instead of Cookies
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        const token = userData?.token;
+
+        console.log("Token being used:", token); // Debug log
+
         if (!token) {
+            console.log("No token found, redirecting to login");
             navigate('/admin/login');
             return;
         }
@@ -228,6 +234,8 @@ const AdminDashboard = () => {
                 'Content-Type': 'application/json'
             }
         });
+
+        console.log("Admin data response:", response.data); // Debug log
 
         if (response.data.success) {
             const { 
@@ -262,16 +270,17 @@ const AdminDashboard = () => {
                 totalAppointments: totalAppointments || 0,
             });
 
-            // Set the latest appointments
             setConfirmedAppointments(latestConfirmedAppointments || []);
             setPendingAppointments(latestPendingAppointments || []);
         }
     } catch (error) {
-        console.error('Error fetching admin data:', error);
+        console.log('Error fetching admin data:', error.message);
+        console.log('Full error:', error.response?.data);
         setError('Failed to load admin data');
+        
         if (error.response?.status === 401) {
-            // Token expired or invalid
-            Cookies.remove('token');
+            // Clear invalid credentials
+            localStorage.removeItem('userData');
             navigate('/admin/login');
         }
     } finally {
@@ -279,9 +288,15 @@ const AdminDashboard = () => {
     }
   };
 
+  // Add authentication check in useEffect
   useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    if (!userData || !userData.token || userData.role !== 'admin') {
+        navigate('/admin/login');
+        return;
+    }
     fetchAdminData();
-  }, []);
+  }, [navigate]);
 
   const handleTransfer = async () => {
     try {
@@ -289,7 +304,7 @@ const AdminDashboard = () => {
       setTransferError('');
       setTransferSuccess('');
 
-      const token = Cookies.get('token');
+      const token = localStorage.getItem('userData')?.token;
       if (!token) {
         navigate('/admin/login');
         return;

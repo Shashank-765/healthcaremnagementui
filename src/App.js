@@ -24,7 +24,7 @@ import AdminLogin from './admin/adminlogin';
 import InsuranceSignup from './insurance/InsuranceSignup';
 import InsuranceLogin from './insurance/InsuranceLogin';
 import InsuranceDashboard from './insurance/InsuranceDashboard';
-import PatientList from './insurance/PatientList';
+import InsurancePatientList from './insurance/PatientList';
 import HistoryList from './admin/HistoryList';
 // Protected Route component
 const ProtectedRoute = ({ children, allowedRoles = ['doctor'] }) => {
@@ -86,7 +86,7 @@ function App() {
       <Route path="/insurance/signup" element={<InsuranceSignup />} />
       <Route path="/insurance/login" element={<InsuranceLogin />} />
       <Route path ="/insurance/dashboard" element={<InsuranceDashboard />} />
-      <Route path ="/insurance/patient-list" element={<PatientList />} />
+      <Route path ="/insurance/patient-list" element={<InsurancePatientList />} />
     </Routes>
   );
 }

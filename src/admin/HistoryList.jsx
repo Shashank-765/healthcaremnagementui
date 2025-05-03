@@ -1,53 +1,191 @@
-import React, { useState } from 'react';
-import { useNavigate,Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
 import Cookies from 'js-cookie';
+import axios from 'axios';
 
-// Dummy data for patients
-const dummyPatients = [
-  {
-    _id: '1',
-    patient: {
-      name: 'John Doe',
-      phone: '123-456-7890',
-      email: 'john.doe@example.com',
-    },
-    hasPermission: true,
-    isVerified: false
-  },
-  {
-    _id: '2',
-    patient: {
-      name: 'Jane Smith',
-      phone: '098-765-4321',
-      email: 'jane.smith@example.com',
-    },
-    hasPermission: true,
-    isVerified: true
-  },
-  {
-    _id: '3',
-    patient: {
-      name: 'Alice Johnson',
-      phone: '555-555-5555',
-      email: 'alice.johnson@example.com',
-    },
-    hasPermission: false,
-    isVerified: false
-  },
-];
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const HistoryList = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState(dummyPatients);
+  const [patients, setPatients] = useState([]);
   const [expandedItem, setExpandedItem] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [medicalHistory, setMedicalHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [permissions, setPermissions] = useState({});
+  const [accessRequests, setAccessRequests] = useState({});
+
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    const token = userData?.token;
+    if (!token) {
+      navigate('/admin/login');
+      return;
+    }
+    fetchPatients(token);
+    fetchAccessRequests(token);
+  }, [navigate]);
+
+  const fetchPatients = async (token) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/admin/patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setPatients(response.data.data);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAccessRequests = async (token) => {
+    try {
+      const response = await axios.get(`${API_URL}/admin/insurance-access-requests`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        const requestsMap = {};
+        const permissionsMap = {};
+        response.data.data.forEach(request => {
+          requestsMap[request.patientDetails._id] = request.requestId;
+          permissionsMap[request.patientDetails._id] = request.status === 'approved';
+        });
+        setAccessRequests(requestsMap);
+        setPermissions(permissionsMap);
+      }
+    } catch (error) {
+      console.error('Error fetching access requests:', error);
+      if (error.response?.status === 401) {
+        Cookies.remove('adminToken');
+        navigate('/admin/login');
+      }
+    }
+  };
+
+  const fetchMedicalHistory = async (patientName) => {
+    try {
+      setLoading(true);
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+      const response = await axios.get(`${API_URL}/admin/patient-medical-history/${encodeURIComponent(patientName)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setMedicalHistory(response.data.data.medicalHistory);
+      } else {
+        console.error('Error fetching medical history:', response.data.message);
+        setMedicalHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching medical history:', error);
+      if (error.response?.status === 401) {
+        Cookies.remove('adminToken');
+        navigate('/admin/login');
+      }
+      setMedicalHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewPatient = async (patient) => {
+    setSelectedPatient(patient);
+    await fetchMedicalHistory(patient.name);
+    setShowModal(true);
+  };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleLogout = () => {
+    Cookies.remove('adminToken');
+    navigate('/admin/login');
+  };
+
+  const handlePermissionToggle = async (patient) => {
+    try {
+      setLoading(true);
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;
+      if (!token) {
+        navigate('/admin/login');
+        return;
+      }
+
+      // If there's no existing request, create one first
+      if (!accessRequests[patient._id]) {
+        const createResponse = await axios.post(
+          `${API_URL}/insurance/request-access`,
+          {
+            patientName: patient.name
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        if (createResponse.data.success) {
+          setAccessRequests(prev => ({
+            ...prev,
+            [patient._id]: createResponse.data.data.requestId
+          }));
+        }
+      }
+
+      // Now handle the access request
+      const response = await axios.post(
+        `${API_URL}/admin/handle-insurance-request`,
+        {
+          requestId: accessRequests[patient._id],
+          action: permissions[patient._id] ? 'deny' : 'approve'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setPermissions(prev => ({
+          ...prev,
+          [patient._id]: !prev[patient._id]
+        }));
+        // Refresh access requests after successful action
+        await fetchAccessRequests(token);
+      }
+    } catch (error) {
+      console.error('Error toggling permission:', error);
+      if (error.response?.status === 401) {
+        Cookies.remove('adminToken');
+        navigate('/admin/login');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const menuItems = [
@@ -55,48 +193,45 @@ const HistoryList = () => {
       id: 'dashboard',
       icon: 'fas fa-th-large',
       label: 'Dashboard',
-      path: '/insurance/dashboard'
+      path: '/admin/admin-dashboard'
     },
     {
-      id: 'patientlist',
+      id: 'doctors',
+      icon: 'fas fa-user-md',
+      label: 'Doctors',
+      path: '/admin/doctors',
+      submenu: [
+        { label: 'All Doctors', path: '/admin/doctors' },
+        { label: 'Add Doctor', path: '/admin/add-doctor' }
+      ]
+    },
+    {
+      id: 'patients',
       icon: 'fas fa-user-injured',
-      label: 'patient list',
-      path: '/insurance/patient-list'
-    }
+      label: 'Patients',
+      path: '/admin/patients',
+      submenu: [
+        { label: 'All Patients', path: '/admin/patients' },
+        { label: 'Add Patient', path: '/admin/add-patient' }
+      ]
+    },
+    {
+      id: 'appointments',
+      icon: 'fas fa-calendar-check',
+      label: 'Appointments',
+      path: '/admin/appointments',
+      submenu: [
+        { label: 'Confirmed Appointments', path: '/admin/confirmed-appointments' },
+        { label: 'Pending Appointments', path: '/admin/pending-appointments' }
+      ]
+    },
+    {
+      id: 'patient history',
+      icon: 'fas fa-history',
+      label: 'Patient History',
+      path: '/admin/history-list'
+    },
   ];
-
-  const handleMenuClick = (item) => {
-    if (item.submenu) {
-      setExpandedItem(expandedItem === item.id ? null : item.id);
-    } else {
-      navigate(item.path);
-    }
-  };
-
-  const handleViewPatient = (patient) => {
-    navigate(`/insurance/patient/${patient._id}`, { state: { patient } });
-  };
-
-  const handlePermissionToggle = (patientId) => {
-    setPatients(patients.map(patient => 
-      patient._id === patientId 
-        ? { ...patient, hasPermission: !patient.hasPermission }
-        : patient
-    ));
-  };
-
-  const handleVerificationToggle = (patientId) => {
-    setPatients(patients.map(patient => 
-      patient._id === patientId 
-        ? { ...patient, isVerified: !patient.isVerified }
-        : patient
-    ));
-  };
-
-  const handleLogout = () => {
-    Cookies.remove('token');
-    navigate('/insurance/login');
-  };
 
   return (
     <div className="dashboard-container">
@@ -111,29 +246,13 @@ const HistoryList = () => {
               <li key={item.id}>
                 <div
                   className={`menu-item ${expandedItem === item.id ? 'expanded' : ''}`}
-                  onClick={() => handleMenuClick(item)}
+                  onClick={() => navigate(item.path)}
                 >
                   <div className="menu-title">
                     <i className={item.icon}></i>
                     <span>{item.label}</span>
-                    {item.submenu && (
-                      <i className={`fas fa-chevron-${expandedItem === item.id ? 'down' : 'right'} submenu-arrow`}></i>
-                    )}
                   </div>
                 </div>
-                {item.submenu && expandedItem === item.id && (
-                  <ul className="submenu">
-                    {item.submenu.map((subItem, index) => (
-                      <li
-                        key={index}
-                        onClick={() => navigate(subItem.path)}
-                        className="submenu-item"
-                      >
-                        {subItem.label}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </li>
             ))}
           </ul>
@@ -148,7 +267,7 @@ const HistoryList = () => {
 
       {/* Main Content */}
       <div className={`admin-main ${isSidebarOpen ? '' : 'expanded'}`}>
-        {/* Navbar with toggle */}
+        {/* Navbar */}
         <div className="navbar">
           <div className="navbar-left">
             <div className="mobile-toggle" onClick={toggleSidebar}>
@@ -175,53 +294,92 @@ const HistoryList = () => {
 
         {/* Patient List Table */}
         <div className="appointments-table-container">
-      <h4>Patient List</h4>
-        <table className="appointments-table">
-          <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Phone Number</th>
-              <th>Email</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-              {patients.map((patient) => (
-                <tr key={patient._id}>
-                  <td>{patient.patient?.name || 'N/A'}</td>
-                  <td>{patient.patient?.phone || 'N/A'}</td>
-                  <td>{patient.patient?.email || 'N/A'}</td>
-                <td>
-                  <div className="table-actions">
-                    <button
-                      className="action-btn view"
-                      title="View Details"
-                        onClick={() => handleViewPatient(patient)}
-                    >
-                      <i className="fas fa-eye"></i>
-                    </button>
-                      <button
-                        className={`action-btn ${patient.hasPermission ? 'permission-on' : 'permission-off'}`}
-                        title={patient.hasPermission ? 'Disable Permission' : 'Enable Permission'}
-                        onClick={() => handlePermissionToggle(patient._id)}
-                      >
-                        <i className={`fas fa-${patient.hasPermission ? 'toggle-on' : 'toggle-off'}`}></i>
-                      </button>
-                      <div className="verification-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={patient.isVerified}
-                          onChange={() => handleVerificationToggle(patient._id)}
-                          title="Insurance Verification"
-                        />
+          <h4>Patient History List</h4>
+          {loading ? (
+            <div className="loading-spinner">Loading...</div>
+          ) : (
+            <table className="appointments-table">
+              <thead>
+                <tr>
+                  <th>Patient Name</th>
+                  <th>Phone Number</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {patients.map((patient) => (
+                  <tr key={patient._id}>
+                    <td>{patient.name}</td>
+                    <td>{patient.phone}</td>
+                    <td>{patient.email}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="action-btn view"
+                          title="View Medical History"
+                          onClick={() => handleViewPatient(patient)}
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button
+                          className={`action-btn permission ${permissions[patient._id] ? 'active' : ''}`}
+                          title={permissions[patient._id] ? 'Revoke Insurance Access' : 'Grant Insurance Access'}
+                          onClick={() => handlePermissionToggle(patient)}
+                          disabled={loading}
+                        >
+                          <i className={`fas fa-${permissions[patient._id] ? 'user-check' : 'user-plus'}`}></i>
+                        </button>
                       </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
+
+        {/* Medical History Modal */}
+        {showModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3>{selectedPatient?.name}'s Medical History</h3>
+                <button className="close-btn" onClick={() => setShowModal(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                {loading ? (
+                  <div className="loading-spinner">Loading...</div>
+                ) : medicalHistory.length > 0 ? (
+                  <table className="medical-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Doctor</th>
+                        <th>Condition</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {medicalHistory.map((record, index) => (
+                        <tr key={index}>
+                          <td>{new Date(record.date).toLocaleDateString()}</td>
+                          <td>{record.doctorName}</td>
+                          <td>{record.condition}</td>
+                          <td>{record.notes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No medical history available</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

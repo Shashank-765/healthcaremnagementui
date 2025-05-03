@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
 import Cookies from 'js-cookie';
+
+const API_URL = 'http://localhost:5000/api/v1';
 
 const InsuranceDashboard = () => {
     const navigate = useNavigate();
@@ -13,6 +15,11 @@ const InsuranceDashboard = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSpecialization, setSelectedSpecialization] = useState('');
+    const [showViewPopup, setShowViewPopup] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState(null);
+    const [showAccessRequestPopup, setShowAccessRequestPopup] = useState(false);
+    const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Dummy data for appointments
     const confirmedAppointments = [
@@ -42,6 +49,31 @@ const InsuranceDashboard = () => {
         }
     ];
 
+    useEffect(() => {
+        fetchPatients();
+    }, []);
+
+    const fetchPatients = async () => {
+        try {
+            const response = await fetch(`${API_URL}/insurance/patients`, {
+                headers: {
+                    'Authorization': `Bearer ${Cookies.get('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setPatients(data.data);
+            } else {
+                console.error('Failed to fetch patients');
+            }
+        } catch (error) {
+            console.error('Error fetching patients:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
@@ -54,9 +86,9 @@ const InsuranceDashboard = () => {
             path: '/insurance/dashboard'
         },
         {
-            id: 'patientlist',
+            id: 'patientslist',
             icon: 'fas fa-user-injured',
-            label: 'patient list',
+            label: 'patients list',
             path: '/insurance/patient-list'
         }
     ];
@@ -70,7 +102,56 @@ const InsuranceDashboard = () => {
     };
 
     const handleViewAppointment = (appointment) => {
-        navigate(`/insurance/appointment/${appointment._id}`, { state: { appointment } });
+        setSelectedAppointment(appointment);
+        setShowViewPopup(true);
+    };
+
+    const handleAccessRequest = async (patient) => {
+        try {
+            const response = await fetch(`${API_URL}/insurance/request-access`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${Cookies.get('token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    patientId: patient.patientId
+                })
+            });
+            
+            if (response.ok) {
+                alert('Access request sent successfully');
+                fetchPatients(); // Refresh the data
+            } else {
+                alert('Failed to send access request');
+            }
+        } catch (error) {
+            console.error('Error sending access request:', error);
+            alert('Error sending access request');
+        }
+    };
+
+    const handleVerificationToggle = async (patientId) => {
+        try {
+            const response = await fetch(`${API_URL}/insurance/verify-patient/${patientId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${Cookies.get('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                fetchPatients(); // Refresh the data
+            } else {
+                console.error('Failed to update verification status');
+            }
+        } catch (error) {
+            console.error('Error updating verification:', error);
+        }
+    };
+
+    const handleViewMore = () => {
+        navigate('/insurance/patient-list');
     };
 
     const handleLogout = () => {
@@ -162,7 +243,7 @@ const InsuranceDashboard = () => {
                                 <i className="fas fa-wheelchair"></i>
                             </div>
                             <p className="card-text">Total number of patients covered.lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <h4>{confirmedAppointments.length}</h4>
+                            <h4>{patients.length}</h4>
                         </div>
                     </div>
                     <div className="card">
@@ -177,7 +258,7 @@ const InsuranceDashboard = () => {
                     </div>
                 </div>
 
-                {/* Appointments Table */}
+                {/* Patients Table */}
                 <div className="appointments-table-container">
                     <table className="appointments-table">
                         <thead>
@@ -189,27 +270,84 @@ const InsuranceDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {confirmedAppointments.map(appointment => (
-                                <tr key={appointment._id}>
-                                    <td>{appointment.patient?.name || 'N/A'}</td>
-                                    <td>{appointment.patient?.phone || 'N/A'}</td>
-                                    <td>{appointment.patient?.email || 'N/A'}</td>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="4" className="loading-cell">Loading...</td>
+                                </tr>
+                            ) : patients.map((patient) => (
+                                <tr key={patient.patientId}>
+                                    <td>{patient.name || 'N/A'}</td>
+                                    <td>{patient.phone || 'N/A'}</td>
+                                    <td>{patient.email || 'N/A'}</td>
                                     <td>
                                         <div className="table-actions">
                                             <button 
                                                 className="action-btn view" 
                                                 title="View Details"
-                                                onClick={() => handleViewAppointment(appointment)}
+                                                onClick={() => handleViewAppointment(patient)}
                                             >
                                                 <i className="fas fa-eye"></i>
                                             </button>
+                                            <button
+                                                className="action-btn request"
+                                                title="Request Access"
+                                                onClick={() => handleAccessRequest(patient)}
+                                                disabled={patient.hasAccess}
+                                            >
+                                                <i className="fas fa-hand-paper"></i>
+                                            </button>
+                                            <div className="verification-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={patient.isVerified}
+                                                    onChange={() => handleVerificationToggle(patient.patientId)}
+                                                    title="Verify Insurance"
+                                                />
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
+                    <div className="view-more-container">
+                        <button className="view-more-btn" onClick={handleViewMore}>
+                            View More Patients <i className="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
                 </div>
+
+                {/* View Popup */}
+                {showViewPopup && selectedAppointment && (
+                    <div className="popup-overlay">
+                        <div className="popup-content">
+                            <div className="popup-header">
+                                <h3>Patient Details</h3>
+                                <button className="close-btn" onClick={() => setShowViewPopup(false)}>
+                                    <i className="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div className="popup-body">
+                                <div className="patient-details">
+                                    <p><strong>Name:</strong> {selectedAppointment.patient?.name || 'N/A'}</p>
+                                    <p><strong>Phone:</strong> {selectedAppointment.patient?.phone || 'N/A'}</p>
+                                    <p><strong>Email:</strong> {selectedAppointment.patient?.email || 'N/A'}</p>
+                                    <p><strong>Insurance Status:</strong> {selectedAppointment.isVerified ? 'Verified' : 'Not Verified'}</p>
+                                    <div className="medical-history">
+                                        <h4>Medical History</h4>
+                                        {selectedAppointment.medicalHistory?.map((history, index) => (
+                                            <div key={index} className="history-item">
+                                                <p><strong>Condition:</strong> {history.condition}</p>
+                                                <p><strong>Notes:</strong> {history.notes}</p>
+                                                <p><strong>Date:</strong> {new Date(history.date).toLocaleDateString()}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -185,15 +185,26 @@ const AllAppointments = () => {
             </div>
           </div>
           <div className="card-content">
-            {error && <div className="error-message">{error}</div>}
             {loading ? (
-              <div className="loading-spinner">
-                <i className="fas fa-spinner fa-spin"></i>
-                Loading appointments...
+              <div className="loading-container">
+                <div className="loading-spinner">
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Loading appointments...</span>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="error-container">
+                <div className="error-message">
+                  <i className="fas fa-exclamation-circle"></i>
+                  <span>{error}</span>
+                </div>
               </div>
             ) : filteredAppointments.length === 0 ? (
-              <div className="no-appointments">
-                No appointments found
+              <div className="no-records-container">
+                <div className="no-records">
+                  <i className="fas fa-calendar-times"></i>
+                  <span>No appointments found</span>
+                </div>
               </div>
             ) : (
               <table className="appointments-table">
@@ -210,8 +221,20 @@ const AllAppointments = () => {
                   {filteredAppointments.map((appointment) => (
                     <tr key={appointment._id}>
                       <td>Dr. {appointment.doctorId?.fullName || 'N/A'}</td>
-                      <td>{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
-                      <td>{appointment.appointmentTime}</td>
+                      {/* <td>
+                        {appointment.appointmentDate ? 
+                          new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          }) 
+                          : 'N/A'
+                        }
+                      </td> */}
+                      <td>
+  {new Date(appointment.appointmentDate).toLocaleDateString('en-US')}
+</td>
+                      <td>{appointment.appointmentTime || 'N/A'}</td>
                       <td>
                         <span className={`status-badge ${appointment.status?.toLowerCase()}`}>
                           {appointment.status}
@@ -256,8 +279,17 @@ const AllAppointments = () => {
             <div className="modal-body">
               <div className="appointment-details">
                 <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'N/A'}</p>
-                <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
+                <p><strong>Department:</strong> {selectedAppointment.department || 'N/A'}</p>
+                <p><strong>Date:</strong> {
+                  selectedAppointment.appointmentDate ? 
+                  new Date(selectedAppointment.appointmentDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }) 
+                  : 'N/A'
+                }</p>
+                <p><strong>Time:</strong> {selectedAppointment.appointmentTime || 'N/A'}</p>
                 <p><strong>Status:</strong> 
                   <span className={`status-badge ${selectedAppointment.status?.toLowerCase()}`}>
                     {selectedAppointment.status}
