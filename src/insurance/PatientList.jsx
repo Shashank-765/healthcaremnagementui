@@ -1,82 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
+import correct from '../image/correct.jpg';
 import Cookies from 'js-cookie';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+import useInsurancePatients from './useInsurancePatients';
 
 const InsurancePatientList = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState([]);
   const [expandedItem, setExpandedItem] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showAccessRequestPopup, setShowAccessRequestPopup] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [medicalHistory, setMedicalHistory] = useState([]);
   const [filter, setFilter] = useState('all');
   const [showRequestSentPopup, setShowRequestSentPopup] = useState(false);
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  // Use the custom hook
+  const {
+    patients,
+    loading,
+    handleAccessRequest,
+    handleVerificationToggle,
+    handleViewPatient
+  } = useInsurancePatients();
 
-  const fetchPatients = async () => {
-    try {
-      setLoading(true);
-      const token = Cookies.get('token');
-      const response = await axios.get(`${API_URL}/insurance/patients-with-medical-history`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      if (response.data.success) {
-        setPatients(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMedicalHistory = async (patientName) => {
-    try {
-      setLoading(true);
-      const token = Cookies.get('token');
-      const response = await axios.get(`${API_URL}/insurance/patient-medical-history/${encodeURIComponent(patientName)}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      if (response.data.success) {
-        setMedicalHistory(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching medical history:', error);
-      setMedicalHistory([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleViewPatient = async (patient) => {
+  const handleViewPatientDetails = async (patient) => {
     if (!patient.hasAccess) {
-      return; // Don't allow viewing if no access
+      return;
     }
-    setSelectedPatient(patient);
-    await fetchMedicalHistory(patient.name);
-    setShowViewPopup(true);
+    const patientWithHistory = await handleViewPatient(patient);
+    if (patientWithHistory) {
+      setSelectedPatient(patientWithHistory);
+      setShowViewPopup(true);
+    }
   };
 
-  const handleAccessRequest = (patient) => {
+  const handleAccessRequestClick = (patient) => {
     if (patient.hasAccess) {
       alert('You already have access for this patient');
       return;
@@ -85,67 +47,14 @@ const InsurancePatientList = () => {
     setShowAccessRequestPopup(true);
   };
 
-  const handlePermissionToggle = async (patientId) => {
+  const handlePermissionToggle = async (patient) => {
     try {
-      const token = Cookies.get('token');
-      const response = await axios.post(
-        `${API_URL}/insurance/request-access`,
-        {
-          patientName: patients.find(p => p._id === patientId)?.name
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      if (response.data.success) {
-        // Refresh the patients list
-        await fetchPatients();
-      }
+      await handleAccessRequest(patient);
+      setShowAccessRequestPopup(false);
     } catch (error) {
-      // Check for the specific backend error message
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message &&
-        error.response.data.message.toLowerCase().includes('already pending')
-      ) {
+      if (error.response?.data?.message?.toLowerCase().includes('already pending')) {
         setShowRequestSentPopup(true);
-      } else {
-        console.error('Error toggling permission:', error);
       }
-    }
-  };
-
-  const handleVerificationToggle = async (patientId) => {
-    try {
-      const token = Cookies.get('token');
-      const patient = patients.find(p => p._id === patientId);
-      if (!patient) return;
-
-      const response = await axios.get(
-        `${API_URL}/insurance/verify-patient/${encodeURIComponent(patient.name)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      if (response.data.success) {
-        // Update local state
-        setPatients(prev => 
-          prev.map(p => 
-            p._id === patientId 
-              ? { ...p, isVerified: !p.isVerified } 
-              : p
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error updating verification:', error);
     }
   };
 
@@ -301,7 +210,7 @@ const InsurancePatientList = () => {
                         <button
                           className={`action-btn view ${!patient.hasAccess ? 'disabled' : ''}`}
                           title={patient.hasAccess ? "View Medical History" : "No Access"}
-                          onClick={() => handleViewPatient(patient)}
+                          onClick={() => handleViewPatientDetails(patient)}
                           disabled={!patient.hasAccess}
                         >
                           <i className="fas fa-eye"></i>
@@ -315,20 +224,24 @@ const InsurancePatientList = () => {
                               setShowRequestSentPopup(true);
                               return;
                             }
-                            handleAccessRequest(patient);
+                            handleAccessRequestClick(patient);
                           }}
                           disabled={patient.hasAccess || patient.requestPending}
                         >
                           <i className={`fas fa-hand-paper ${patient.hasAccess ? 'text-success' : ''}`}></i>
                         </button>
                         <div className="verification-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={patient.isVerified}
-                            onChange={() => handleVerificationToggle(patient._id)}
-                            title="Verify Insurance"
-                            disabled={!patient.hasAccess}
-                          />
+                          {patient.isVerified ? (
+                            <img src={correct} width="30px" height="30px" alt="Verified" />
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={patient.isVerified}
+                              onChange={() => handleVerificationToggle(patient)}
+                              title="Verify Insurance"
+                              disabled={!patient.hasAccess}
+                            />
+                          )}
                         </div>
                       </div>
                     </td>
@@ -352,7 +265,7 @@ const InsurancePatientList = () => {
               <div className="popup-body">
                 {loading ? (
                   <div className="loading-spinner">Loading...</div>
-                ) : medicalHistory.length > 0 ? (
+                ) : selectedPatient.medicalHistory?.length > 0 ? (
                   <table className="medical-history-table">
                     <thead>
                       <tr>
@@ -363,7 +276,7 @@ const InsurancePatientList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {medicalHistory.map((record, index) => (
+                      {selectedPatient.medicalHistory.map((record, index) => (
                         <tr key={index}>
                           <td>{new Date(record.date).toLocaleDateString()}</td>
                           <td>{record.doctorName}</td>
@@ -403,14 +316,7 @@ const InsurancePatientList = () => {
                   </button>
                   <button 
                     className="submit-btn"
-                    onClick={async () => {
-                      try {
-                        await handlePermissionToggle(selectedPatient._id);
-                        setShowAccessRequestPopup(false);
-                      } catch (error) {
-                        console.error('Error sending access request:', error);
-                      }
-                    }}
+                    onClick={() => handlePermissionToggle(selectedPatient)}
                   >
                     Send Request
                   </button>

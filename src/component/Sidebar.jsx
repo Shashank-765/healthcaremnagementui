@@ -113,13 +113,6 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
                       <i className="fas fa-list-alt"></i>
                       Total Appointments
                     </li>
-                    <li 
-                      onClick={() => handleSubmenuClick('/cancel-appointment')}
-                      className="submenu-item"
-                    >
-                      <i className="fas fa-times-circle"></i>
-                      Cancel Appointment
-                    </li>
                   </>
                 )}
               </ul>

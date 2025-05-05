@@ -17,7 +17,6 @@ import BookAppointment from './patient/BookAppointment';
 import MedicalHistory from './patient/MedicalHistory';
 import Profile from './component/Profile';
 import TotalAppointments from './doctor/TotalAppointments';
-import CancelAppointments from './doctor/CancelAppointments';
 import PatientHistory from './doctor/PatientHistory';
 import AdminSignup from './admin/adminSignup';
 import AdminLogin from './admin/adminlogin';
@@ -55,11 +54,6 @@ function App() {
       <Route path="/total-appointments" element={
         <ProtectedRoute allowedRoles={['doctor']}>
           <TotalAppointments />
-        </ProtectedRoute>
-      } />
-      <Route path="/cancel-appointment" element={
-        <ProtectedRoute allowedRoles={['doctor']}>
-          <CancelAppointments />
         </ProtectedRoute>
       } />
       <Route path="/doctor-dashboard/patient-history" element={

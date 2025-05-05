@@ -38,6 +38,7 @@ const DoctorsList = () => {
   const [showAllDoctors, setShowAllDoctors] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [originalEmail, setOriginalEmail] = useState(null);
 
   // Fetch doctors data with filters
   const fetchDoctors = async () => {
@@ -45,10 +46,6 @@ const DoctorsList = () => {
       const userData = JSON.parse(localStorage.getItem('userData'));
       const token = userData?.token;   
       console.log('Token:', token); 
-      if (!token) {
-        navigate('/admin/login');
-        return;
-      }
 
       // Build query parameters
       const queryParams = new URLSearchParams();
@@ -228,6 +225,7 @@ const DoctorsList = () => {
 
   const handleEdit = (doctor) => {
     setSelectedDoctor(doctor);
+    setOriginalEmail(doctor.email);
     setShowEditPopup(true);
   };
 
@@ -243,28 +241,39 @@ const DoctorsList = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = Cookies.get('adminToken');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      let token = userData?.token;   
       if (!token) {
-        navigate('/admin/login');
-        return;
+        throw new Error('No token found');
       }
+
+      // Log current state before update
+      console.log('Current doctor state:', selectedDoctor);
 
       // Create FormData object to handle file upload
       const formData = new FormData();
+      
+      // Add all fields to FormData
       formData.append('fullName', selectedDoctor.fullName);
       formData.append('specialization', selectedDoctor.specialization);
       formData.append('experience', selectedDoctor.experience);
       formData.append('availability', selectedDoctor.availability);
       formData.append('contactnumber', selectedDoctor.contactnumber);
       formData.append('email', selectedDoctor.email);
+      formData.append('qualification', selectedDoctor.qualification || 'MBBS');
+      formData.append('address', selectedDoctor.address || 'Not provided');
+      formData.append('bio', selectedDoctor.bio || 'No bio provided');
       
       // Append profile image if it exists
       if (selectedDoctor.profileImage) {
         formData.append('profileimage', selectedDoctor.profileImage);
       }
 
+      // Log the data being sent
+      console.log('Sending update data:', Object.fromEntries(formData));
+
       const response = await axios.put(
-        `${API_URL}/doctor/updatedoctors/${selectedDoctor.email}`,
+        `${API_URL}/doctor/updatedoctors/${originalEmail}`,
         formData,
         {
           headers: {
@@ -274,29 +283,37 @@ const DoctorsList = () => {
         }
       );
 
+      console.log('Update response:', response.data);
+
       if (response.data.success) {
-        // Update the doctor in the state
-        setDoctors(doctors.map(doctor => 
-          doctor.email === selectedDoctor.email ? selectedDoctor : doctor
-        ));
+        // Update the doctors list with the new data
+        const updatedDoctor = response.data.data.doctor;
+        setDoctors(prevDoctors => 
+          prevDoctors.map(doctor => 
+            doctor.email === updatedDoctor.email ? updatedDoctor : doctor
+          )
+        );
+        
         setShowEditPopup(false);
-        // You can add a success message here if you want
+        // Fetch fresh data from backend
+        await fetchDoctors();
       } else {
         setError('Failed to update doctor');
       }
     } catch (error) {
       console.error('Error updating doctor:', error);
-      setError('Failed to update doctor');
+      setError(error.response?.data?.message || 'Failed to update doctor');
     }
   };
 
   // Update handleTransferToAddDoctor function
   const handleTransferToAddDoctor = async (doctor) => {
     try {
-      const token = Cookies.get('adminToken');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;   
       if (!token) {
-        navigate('/admin/login');
-        return;
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        token = userData?.token;
       }
 
       // Now transfer to adddoctor collection
@@ -342,10 +359,11 @@ const DoctorsList = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      const token = Cookies.get('adminToken');
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;   
       if (!token) {
-        navigate('/admin/login');
-        return;
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        token = userData?.token;
       }
 
       const response = await axios.delete(`${API_URL}/doctor/deletedoctors/${selectedDoctor.email}`, {
@@ -359,7 +377,7 @@ const DoctorsList = () => {
         // Remove the deleted doctor from the state
         setDoctors(doctors.filter(doctor => doctor.email !== selectedDoctor.email));
         setShowDeletePopup(false);
-        // You can add a success message here if you want
+        fetchDoctors(); // <-- Refetch from backend
       } else {
         setError('Failed to delete doctor');
       }
@@ -668,7 +686,7 @@ const DoctorsList = () => {
                     <input
                       type="email"
                       value={selectedDoctor.email}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, email: e.target.value})}
+                      readOnly
                       required
                     />
                   </div>

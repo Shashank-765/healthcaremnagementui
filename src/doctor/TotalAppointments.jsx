@@ -112,18 +112,36 @@ const TotalAppointments = () => {
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
+      console.log('Starting status update for appointment:', appointmentId, 'new status:', newStatus);
+      
       const userData = JSON.parse(localStorage.getItem('userData'));
+      console.log('User data:', userData);
       
       if (!userData || !userData.token) {
         setError('Authentication required');
         return;
       }
 
-      const response = await axios.patch(
+      // Find the appointment in the current list
+      const appointment = appointments.find(app => app._id === appointmentId);
+      console.log('Found appointment:', appointment);
+      
+      if (!appointment) {
+        setError('Appointment not found');
+        return;
+      }
+
+      // Get doctor's ID from the appointment
+      const doctorId = appointment.doctorId;
+      console.log('Doctor ID from appointment:', doctorId);
+
+      // Make the API call without checking doctor ID (backend will handle authorization)
+      console.log('Making API call to update status...');
+      const response = await axios.put(
         `${API_URL}/appointment/update-status`,
         {
           appointmentId,
-          status: newStatus
+          status: newStatus.toLowerCase()
         },
         {
           headers: {
@@ -133,8 +151,11 @@ const TotalAppointments = () => {
         }
       );
 
+      console.log('API Response:', response.data);
+
       if (response.data.success) {
-        fetchAppointments();
+        // Refresh appointments after successful update
+        await fetchAppointments();
       } else {
         setError(response.data.message || 'Failed to update status');
       }
@@ -238,7 +259,7 @@ const TotalAppointments = () => {
                           onChange={(e) => handleStatusChange(appointment._id, e.target.value)}
                           className={`status-select ${appointment.status.toLowerCase()}`}
                         >
-                          <option value="confirmed">Confirmed</option>
+                          <option value="confirm">Confirm</option>
                           <option value="pending">Pending</option>
                           <option value="cancelled">Cancelled</option>
                         </select>

@@ -134,17 +134,24 @@ const BookAppointmentForm = () => {
                 navigate('/all-appointments');
             }, 1000);
         } else {
-            setError(response.data.message || 'Failed to book appointment');
+            if (response.data.response?.status === 500) {
+                setError('Server is busy or encountered an error. Please try again later.');
+            } else {
+                setError(response.data.message || 'Failed to book appointment');
+            }
         }
     } catch (error) {
         console.log('Error booking appointment:', error.message);
         
         if (error.response) {
             // Server responded with error
-            setError(error.response.data.message || 'Failed to book appointment');
+            if (error.response.status === 500) {
+                setError('Server is busy or encountered an error. Please try again later.');
+            } else {
+                setError(error.response.data.message || 'Failed to book appointment');
+            }
         } else if (error.request) {
-            // No response received
-            setError('Cannot connect to server. Please check if server is running.');
+            setError('Server is not responding or is busy. Please try again later.');
         } else {
             setError('Error creating appointment. Please try again.');
         }

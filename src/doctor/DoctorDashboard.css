@@ -786,23 +786,6 @@
     height: 53vh;
 }
 }
-
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  font-size: 1.2rem;
-  color: #333;
-}
-
-.loading-spinner i {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #007bff;
-}
-
 .error-message {
   display: flex;
   flex-direction: column;

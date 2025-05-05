@@ -9,6 +9,28 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
+// Add custom styles
+const styles = {
+  verificationStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: '10px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease',
+  },
+  verifiedIcon: {
+    color: '#28a745',
+    fontSize: '1.2rem',
+    transition: 'all 0.3s ease',
+  },
+  unverifiedIcon: {
+    color: '#dc3545',
+    fontSize: '1.2rem',
+    transition: 'all 0.3s ease',
+  }
+};
+
 const HistoryList = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
@@ -20,6 +42,7 @@ const HistoryList = () => {
   const [loading, setLoading] = useState(false);
   const [permissions, setPermissions] = useState({});
   const [accessRequests, setAccessRequests] = useState({});
+  const [verifiedPatients, setVerifiedPatients] = useState({});
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('userData'));
@@ -133,6 +156,13 @@ const HistoryList = () => {
         return;
       }
 
+      // Toggle verification status
+      const newVerifiedStatus = !verifiedPatients[patient._id];
+      setVerifiedPatients(prev => ({
+        ...prev,
+        [patient._id]: newVerifiedStatus
+      }));
+
       // If there's no existing request, create one first
       if (!accessRequests[patient._id]) {
         const createResponse = await axios.post(
@@ -227,16 +257,24 @@ const HistoryList = () => {
     },
     {
       id: 'patient history',
-      icon: 'fas fa-history',
-      label: 'Patient History',
+      icon: 'fas fa-user-injured',
+      label: 'patient history',
       path: '/admin/history-list'
-    },
+    }
   ];
+
+  const handleMenuClick = (item) => {
+    if (item.submenu) {
+      setExpandedItem(expandedItem === item.id ? null : item.id);
+    } else {
+      navigate(item.path);
+    }
+  };
 
   return (
     <div className="dashboard-container">
       {/* Sidebar */}
-      <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+      <div className={`admin-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="logo">
           <img src={logoImage} alt="Hospital Logo" />
         </div>
@@ -244,15 +282,31 @@ const HistoryList = () => {
           <ul>
             {menuItems.map((item) => (
               <li key={item.id}>
-                <div
+                <div 
                   className={`menu-item ${expandedItem === item.id ? 'expanded' : ''}`}
-                  onClick={() => navigate(item.path)}
+                  onClick={() => handleMenuClick(item)}
                 >
                   <div className="menu-title">
                     <i className={item.icon}></i>
                     <span>{item.label}</span>
+                    {item.submenu && (
+                      <i className={`fas fa-chevron-${expandedItem === item.id ? 'down' : 'right'} submenu-arrow`}></i>
+                    )}
                   </div>
                 </div>
+                {item.submenu && expandedItem === item.id && (
+                  <ul className="submenu">
+                    {item.submenu.map((subItem, index) => (
+                      <li 
+                        key={index}
+                        onClick={() => navigate(subItem.path)}
+                        className="submenu-item"
+                      >
+                        {subItem.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -330,6 +384,17 @@ const HistoryList = () => {
                         >
                           <i className={`fas fa-${permissions[patient._id] ? 'user-check' : 'user-plus'}`}></i>
                         </button>
+                        <div 
+                          className="verification-status" 
+                          style={styles.verificationStatus}
+                          onClick={() => handlePermissionToggle(patient)}
+                        >
+                          {verifiedPatients[patient._id] ? (
+                            <i className="fas fa-check-circle" style={styles.verifiedIcon}></i>
+                          ) : (
+                            <i className="fas fa-times-circle" style={styles.unverifiedIcon}></i>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

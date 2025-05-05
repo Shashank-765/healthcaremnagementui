@@ -58,7 +58,7 @@ const DoctorDashboard = () => {
       try {
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         const token = userData.token;
-        
+        const doctorEmail = userData.email;
         if (!token || userData.role !== 'doctor') {
           setError('Please login as a doctor to view dashboard');
           setLoading(false);
@@ -66,18 +66,16 @@ const DoctorDashboard = () => {
           return;
         }
 
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const doctorId = tokenPayload.id;
 
-        if (!doctorId) {
-          setError('Doctor ID not found in token');
+        if (!doctorEmail) {
+          setError('Doctor email not found in token');
           setLoading(false);
           return;
         }
 
-        console.log('Fetching dashboard data for doctor:', doctorId);
+        console.log('Fetching dashboard data for doctor:', doctorEmail);
 
-        const response = await axios.get(`${API_URL}/doctor/dashboard/${doctorId}`, {
+        const response = await axios.get(`${API_URL}/doctor/dashboard/${doctorEmail}`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -130,11 +128,6 @@ const DoctorDashboard = () => {
           label: 'Total Appointments',
           path: '/total-appointments',
           icon: 'fas fa-list-alt'
-        },
-        {
-          label: 'Cancel Appointments',
-          path: '/cancel-appointment',
-          icon: 'fas fa-calendar-times'
         }
       ]
     },
@@ -176,11 +169,13 @@ const DoctorDashboard = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-container">
-        <div className="loading-spinner">
-          <i className="fas fa-spinner fa-spin"></i>
-          Loading dashboard data...
-        </div>
+      <div className="dashboard-container" style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh'
+      }}>
+        <div className="loading-spinner">Loading...</div>
       </div>
     );
   }
@@ -240,7 +235,7 @@ const DoctorDashboard = () => {
               <i className="fas fa-clock"></i>
             </div>
             <div className="doc-stat-info">
-              <h4>Total Hospital</h4>
+              <h4>Total Medical History</h4>
               <p className="doc-stat-number">{dashboardData.totalHospital}</p>
               <small className="doc-stat-text doc-attention">View All</small>
             </div>

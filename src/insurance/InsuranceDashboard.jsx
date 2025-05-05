@@ -1,78 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
+import correct from '../image/correct.jpg';
 import Cookies from 'js-cookie';
-
-const API_URL = 'http://localhost:5000/api/v1';
+import useInsurancePatients from './useInsurancePatients';
 
 const InsuranceDashboard = () => {
     const navigate = useNavigate();
     const [expandedItem, setExpandedItem] = useState(null);
     const [showUserDropdown, setShowUserDropdown] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedSpecialization, setSelectedSpecialization] = useState('');
     const [showViewPopup, setShowViewPopup] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
-    const [showAccessRequestPopup, setShowAccessRequestPopup] = useState(false);
-    const [patients, setPatients] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    // Dummy data for appointments
-    const confirmedAppointments = [
-        {
-            _id: '1',
-            patient: {
-                name: 'John Doe',
-                phone: '555-0123',
-                email: 'john.doe@example.com'
-            }
-        },
-        {
-            _id: '2',
-            patient: {
-                name: 'Jane Smith',
-                phone: '555-0456',
-                email: 'jane.smith@example.com'
-            }
-        },
-        {
-            _id: '3',
-            patient: {
-                name: 'Mike Johnson',
-                phone: '555-0789',
-                email: 'mike.johnson@example.com'
-            }
-        }
-    ];
-
-    useEffect(() => {
-        fetchPatients();
-    }, []);
-
-    const fetchPatients = async () => {
-        try {
-            const response = await fetch(`${API_URL}/insurance/patients`, {
-                headers: {
-                    'Authorization': `Bearer ${Cookies.get('token')}`
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setPatients(data.data);
-            } else {
-                console.error('Failed to fetch patients');
-            }
-        } catch (error) {
-            console.error('Error fetching patients:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Use the custom hook
+    const {
+        patients,
+        loading,
+        stats,
+        handleAccessRequest,
+        handleVerificationToggle,
+        handleViewPatient
+    } = useInsurancePatients();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -101,52 +53,11 @@ const InsuranceDashboard = () => {
         }
     };
 
-    const handleViewAppointment = (appointment) => {
-        setSelectedAppointment(appointment);
-        setShowViewPopup(true);
-    };
-
-    const handleAccessRequest = async (patient) => {
-        try {
-            const response = await fetch(`${API_URL}/insurance/request-access`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${Cookies.get('token')}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    patientId: patient.patientId
-                })
-            });
-            
-            if (response.ok) {
-                alert('Access request sent successfully');
-                fetchPatients(); // Refresh the data
-            } else {
-                alert('Failed to send access request');
-            }
-        } catch (error) {
-            console.error('Error sending access request:', error);
-            alert('Error sending access request');
-        }
-    };
-
-    const handleVerificationToggle = async (patientId) => {
-        try {
-            const response = await fetch(`${API_URL}/insurance/verify-patient/${patientId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${Cookies.get('token')}`
-                }
-            });
-            
-            if (response.ok) {
-                fetchPatients(); // Refresh the data
-            } else {
-                console.error('Failed to update verification status');
-            }
-        } catch (error) {
-            console.error('Error updating verification:', error);
+    const handleViewAppointment = async (patient) => {
+        const patientWithHistory = await handleViewPatient(patient);
+        if (patientWithHistory) {
+            setSelectedAppointment(patientWithHistory);
+            setShowViewPopup(true);
         }
     };
 
@@ -235,25 +146,121 @@ const InsuranceDashboard = () => {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="stats-grid-insurance">
-                    <div className="card">
-                        <div className="card-body">
-                            <h5 className="card-title">Total Patients</h5>
-                            <div className="small-card-icon">
+                <div className="stats-grid-insurance" style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '2rem',
+                    padding: '2rem'
+                }}>
+                    <div className="card" style={{
+                        width: '300px',
+                        height: '200px',
+                        borderRadius: '15px',
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.3s ease',
+                        cursor: 'pointer',
+                        backgroundColor: '#fff'
+                    }}>
+                        <div className="card-body" style={{
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%'
+                        }}>
+                            <h5 className="card-title" style={{
+                                fontSize: '1.2rem',
+                                marginBottom: '1rem',
+                                color: '#333'
+                            }}>Total Medical Patients</h5>
+                            <div className="small-card-icon" style={{
+                                fontSize: '2rem',
+                                color: '#007bff',
+                                marginBottom: '1rem'
+                            }}>
                                 <i className="fas fa-wheelchair"></i>
                             </div>
-                            <p className="card-text">Total number of patients covered.lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <h4>{patients.length}</h4>
+                            <h4 style={{
+                                fontSize: '2rem',
+                                fontWeight: 'bold',
+                                color: '#007bff',
+                                margin: 0
+                            }}>{stats.totalPatients}</h4>
                         </div>
                     </div>
-                    <div className="card">
-                        <div className="card-body">
-                            <h5 className="card-title">Total Insurance</h5>
-                            <div className="small-card-icon">
+                    <div className="card" style={{
+                        width: '300px',
+                        height: '200px',
+                        borderRadius: '15px',
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.3s ease',
+                        cursor: 'pointer',
+                        backgroundColor: '#fff'
+                    }}>
+                        <div className="card-body" style={{
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%'
+                        }}>
+                            <h5 className="card-title" style={{
+                                fontSize: '1.2rem',
+                                marginBottom: '1rem',
+                                color: '#333'
+                            }}>Verified Insurance Patients</h5>
+                            <div className="small-card-icon" style={{
+                                fontSize: '2rem',
+                                color: '#28a745',
+                                marginBottom: '1rem'
+                            }}>
                                 <i className="fas fa-shield-alt"></i>
                             </div>
-                            <p className="card-text">Active insurance policies.lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <h4>24</h4>
+                            <h4 style={{
+                                fontSize: '2rem',
+                                fontWeight: 'bold',
+                                color: '#28a745',
+                                margin: 0
+                            }}>{stats.insuredPatients}</h4>
+                        </div>
+                    </div>
+                    <div className="card" style={{
+                        width: '300px',
+                        height: '200px',
+                        borderRadius: '15px',
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.3s ease',
+                        cursor: 'pointer',
+                        backgroundColor: '#fff'
+                    }}>
+                        <div className="card-body" style={{
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%'
+                        }}>
+                            <h5 className="card-title" style={{
+                                fontSize: '1.2rem',
+                                marginBottom: '1rem',
+                                color: '#333'
+                            }}>Restrict Insurance Patients</h5>
+                            <div className="small-card-icon" style={{
+                                fontSize: '2rem',
+                                color: '#dc3545',
+                                marginBottom: '1rem'
+                            }}>
+                                <i className="fas fa-user-lock"></i>
+                            </div>
+                            <h4 style={{
+                                fontSize: '2rem',
+                                fontWeight: 'bold',
+                                color: '#dc3545',
+                                margin: 0
+                            }}>{stats.totalPatients - stats.insuredPatients}</h4>
                         </div>
                     </div>
                 </div>
@@ -274,8 +281,8 @@ const InsuranceDashboard = () => {
                                 <tr>
                                     <td colSpan="4" className="loading-cell">Loading...</td>
                                 </tr>
-                            ) : patients.map((patient) => (
-                                <tr key={patient.patientId}>
+                            ) : patients.slice(0, 3).map((patient) => (
+                                <tr key={patient.patientId || patient._id}>
                                     <td>{patient.name || 'N/A'}</td>
                                     <td>{patient.phone || 'N/A'}</td>
                                     <td>{patient.email || 'N/A'}</td>
@@ -297,12 +304,12 @@ const InsuranceDashboard = () => {
                                                 <i className="fas fa-hand-paper"></i>
                                             </button>
                                             <div className="verification-checkbox">
-                                                <input
+                                                {patient.isVerified ? <img src={correct} width="30px" height="30px"/> :<input
                                                     type="checkbox"
                                                     checked={patient.isVerified}
-                                                    onChange={() => handleVerificationToggle(patient.patientId)}
+                                                    onChange={() => handleVerificationToggle(patient)}
                                                     title="Verify Insurance"
-                                                />
+                                                />}
                                             </div>
                                         </div>
                                     </td>
@@ -322,28 +329,38 @@ const InsuranceDashboard = () => {
                     <div className="popup-overlay">
                         <div className="popup-content">
                             <div className="popup-header">
-                                <h3>Patient Details</h3>
+                                <h3>Patient Medical History</h3>
                                 <button className="close-btn" onClick={() => setShowViewPopup(false)}>
                                     <i className="fas fa-times"></i>
                                 </button>
                             </div>
                             <div className="popup-body">
-                                <div className="patient-details">
-                                    <p><strong>Name:</strong> {selectedAppointment.patient?.name || 'N/A'}</p>
-                                    <p><strong>Phone:</strong> {selectedAppointment.patient?.phone || 'N/A'}</p>
-                                    <p><strong>Email:</strong> {selectedAppointment.patient?.email || 'N/A'}</p>
-                                    <p><strong>Insurance Status:</strong> {selectedAppointment.isVerified ? 'Verified' : 'Not Verified'}</p>
-                                    <div className="medical-history">
-                                        <h4>Medical History</h4>
-                                        {selectedAppointment.medicalHistory?.map((history, index) => (
-                                            <div key={index} className="history-item">
-                                                <p><strong>Condition:</strong> {history.condition}</p>
-                                                <p><strong>Notes:</strong> {history.notes}</p>
-                                                <p><strong>Date:</strong> {new Date(history.date).toLocaleDateString()}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                {loading ? (
+                                    <div className="loading-spinner">Loading...</div>
+                                ) : selectedAppointment.medicalHistory?.length > 0 ? (
+                                    <table className="medical-history-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Doctor</th>
+                                                <th>Condition</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedAppointment.medicalHistory.map((record, index) => (
+                                                <tr key={index}>
+                                                    <td>{new Date(record.date).toLocaleDateString()}</td>
+                                                    <td>{record.doctorName}</td>
+                                                    <td>{record.condition}</td>
+                                                    <td>{record.notes}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p>No medical history available</p>
+                                )}
                             </div>
                         </div>
                     </div>
