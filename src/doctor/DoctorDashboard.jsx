@@ -15,7 +15,7 @@ const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState({
     totalAppointments: 0,
     totalPatients: 0,
-    totalHospital: '50+',
+    totalMedicalHistory: 0,
     recentAppointments: [],
     patientHistory: [],
     doctorInfo: {}
@@ -24,6 +24,10 @@ const DoctorDashboard = () => {
   const [error, setError] = useState(null);
   const userRole = localStorage.getItem('userRole');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isApproved, setIsApproved] = useState(false);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approvalError, setApprovalError] = useState(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -88,7 +92,7 @@ const DoctorDashboard = () => {
           setError(response.data.message || 'Failed to load dashboard');
         }
       } catch (err) {
-        console.error('Dashboard fetch error:', err);
+        console.error('Dashboard fetch error:', err.message);
         setError('Error loading dashboard');
         if (err.response?.status === 401) {
           localStorage.clear();
@@ -101,6 +105,51 @@ const DoctorDashboard = () => {
 
     fetchDashboardData();
   }, [navigate]);
+
+  useEffect(() => {
+    // Check if doctor is in adddoctor
+    const checkApproval = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const res = await axios.get(`${API_URL}/doctor/readdoctors/${userData.email}`);
+        setIsApproved(!!res.data.data && res.data.data._id);
+      } catch (err) {
+        setIsApproved(false);
+      }
+    };
+    checkApproval();
+  }, []);
+
+  const handleToggleApproval = async () => {
+    if (!hasBeenClicked) {
+      setIsApproved(prev => !prev);
+      setHasBeenClicked(true); 
+      setApproving(true);
+      setApprovalError(null);
+    }
+    try {
+      // Toggling ON: call dashboard API to auto-approve (backend will add to adddoctorModel if needed)
+      if (!isApproved) {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const token = userData.token;
+        const doctorEmail = userData.email;
+        await axios.get(`${API_URL}/doctor/dashboard/${doctorEmail}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        setIsApproved(true);
+      } else {
+        // Toggling OFF: (optional) - you may want to remove from adddoctorModel, but for now just set state
+        setIsApproved(false);
+      }
+    } catch (err) {
+      setApprovalError('Approval failed. Please try again.');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('userRole');
@@ -236,8 +285,32 @@ const DoctorDashboard = () => {
             </div>
             <div className="doc-stat-info">
               <h4>Total Medical History</h4>
-              <p className="doc-stat-number">{dashboardData.totalHospital}</p>
+              <p className="doc-stat-number">{dashboardData.totalMedicalHistory}</p>
               <small className="doc-stat-text doc-attention">View All</small>
+            </div>
+          </div>
+          <div className="doc-stat-card">
+            <div className="doc-stat-icon">
+              <i className="fas fa-user-check"></i>
+            </div>
+            <div className="doc-stat-info">
+              <h4>For Appointment</h4>
+              <p className="doc-stat-number">
+                {isApproved ? "Available" : "Not Available"}
+              </p>
+              <div style={{ marginTop: 8 }}>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={isApproved}
+                    onChange={handleToggleApproval}
+                    disabled={approving || hasBeenClicked}
+                  />
+                  <span className="slider round"></span>
+                </label>
+                {approving && <span style={{ marginLeft: 8 }}>Processing...</span>}
+                {approvalError && <div style={{ color: 'red', marginTop: 4 }}>{approvalError}</div>}
+              </div>
             </div>
           </div>
         </div>
@@ -315,4 +388,4 @@ const DoctorDashboard = () => {
   );
 };
 
-export default DoctorDashboard; 
+export default DoctorDashboard;

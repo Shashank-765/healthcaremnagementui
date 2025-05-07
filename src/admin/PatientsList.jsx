@@ -26,6 +26,11 @@ const PatientsList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     const handleResize = () => {
@@ -122,20 +127,22 @@ const PatientsList = () => {
     });
   };
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (page = 1, limit = 10, query = '') => {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
-      if (searchQuery.trim()) {
-        queryParams.append('fullName', searchQuery.trim());
+      if (query.trim()) {
+        queryParams.append('fullName', query.trim());
       }
-
+      queryParams.append('page', page);
+      queryParams.append('limit', limit);
+  
       const response = await axios.get(`${API_URL}/patient/allpatientdata?${queryParams.toString()}`, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
-      
+  
       if (response.data.success) {
         const formattedPatients = response.data.data.map(patient => ({
           _id: patient._id,
@@ -147,43 +154,38 @@ const PatientsList = () => {
           doctor: patient.doctor || patient.assignedDoctor || 'Not Assigned',
           isAdded: patient.isAdded
         }));
-        
+  
         setPatients(formattedPatients);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalCount(response.data.pagination.totalPatients);
         setError(null);
       } else {
-        // Check for specific IPFS errors
-        if (response.data.message?.includes("IPFS") || response.data.message?.includes("defaultCID")) {
-          setPatients([]);
-          setError("Database initialization required. Please add a patient to initialize the system.");
-        } else {
-          setError(response.data.message || 'Failed to fetch patients data');
-        }
+        setPatients([]);
+        setError(response.data.message || 'Failed to fetch patients data');
       }
     } catch (err) {
       console.error('Error fetching patients:', err);
-      // Handle specific IPFS errors
-      if (err.response?.data?.message?.includes("IPFS") || 
-          err.response?.data?.message?.includes("defaultCID")) {
-        setPatients([]);
-        setError("Database initialization required. Please add a patient to initialize the system.");
-      } else {
-        setError('Unable to fetch patients data. Please try again later.');
-      }
+      setError('Unable to fetch patients data. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
+  
 
-  // Update useEffect to include search query
   useEffect(() => {
-    fetchPatients();
-  }, [searchQuery]); // Re-fetch when search query changes
+    // Debounce API calls for search
+    const timeoutId = setTimeout(() => {
+      fetchPatients(currentPage, 10, searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, currentPage]);
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
+    setCurrentPage(1);
   };
 
-  // Add handlers for popups
   const handleView = (patient) => {
     setSelectedPatient(patient);
     setShowViewPopup(true);
@@ -203,7 +205,6 @@ const PatientsList = () => {
     navigate('/admin/add-patient');
   };
 
-  // Handle Edit Submit with API integration
   const handleEditSubmit = async (editedPatient) => {
     try {
       const updateData = {
@@ -214,21 +215,20 @@ const PatientsList = () => {
 
       await axios.put(`${API_URL}/patient/update/${editedPatient.name}`, updateData);
       setShowEditPopup(false);
-      fetchPatients(); 
+      fetchPatients(currentPage, 10, searchQuery);
     } catch (err) {
       console.error('Error updating patient:', err);
       alert('Failed to update patient information');
     }
   };
 
- const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async () => {
     try {
       await axios.delete(`${API_URL}/patient/delete-patientdata/${selectedPatient.name}`);
       setShowDeletePopup(false);
-      fetchPatients(); // Refresh the list after delete
+      fetchPatients(currentPage, 10, searchQuery);
     } catch (err) {
       console.error('Error deleting patient:', err.message);
-      // Handle error (show message to user)
     }
   };
 
@@ -247,24 +247,52 @@ const PatientsList = () => {
       );
 
       if (response.data.success) {
-        // Remove the transferred patient from the list
         setPatients(patients.filter(p => p.email !== patient.email));
-        alert('Patient transferred successfully to Add Patient collection');
+        setAlertMessage('Patient transferred successfully to Add Patient collection');
+        setShowAlert(true);
       } else {
-        // Show error popup if patient already exists
-        setErrorMessage(response.data.message || 'Patient already exists in Add Patient collection');
-        setShowErrorPopup(true);
+        setAlertMessage(response.data.message || 'Patient already exists in Add Patient collection');
+        setShowAlert(true);
       }
     } catch (error) {
       console.error('Error transferring patient:', error);
-      setErrorMessage(error.response?.data?.message || 'Failed to transfer patient');
-      setShowErrorPopup(true);
+      setAlertMessage(error.response?.data?.message || 'Failed to transfer patient');
+      setShowAlert(true);
     }
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const Alert = ({ message, onClose }) => {
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+      <div className="alert-overlay">
+        <div className="alert-box">
+          <div className="alert-content">
+            <i className="fas fa-exclamation-circle"></i>
+            <p>{message}</p>
+          </div>
+          <button className="alert-close" onClick={onClose}>
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="patients-list-container">
-      {/* Sidebar */}
       <div className={`admin-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="logo">
           <img src={logoImage} alt="Hospital Logo" />
@@ -418,11 +446,11 @@ const PatientsList = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.slice(0, showAllPatients ? patients.length : 3).map(patient => (
+                  {patients.map(patient => (
                     <tr key={patient._id} className={patient.isAdded ? 'added-patient' : 'signup-patient'}>
                       <td>{patient.name || 'N/A'}</td>
                       <td>{patient.email || 'N/A'}</td>
-                      <td>{patient.admitDate || 'Not Admitted'}</td>
+                      <td>{formatDate(patient.admitDate) || 'Not Admitted'}</td>
                       <td>{patient.condition || 'Not Specified'}</td>
                       <td>{patient.room || 'Not Assigned'}</td>
                       <td>{patient.doctor || 'Not Assigned'}</td>
@@ -430,7 +458,7 @@ const PatientsList = () => {
                         <button className="view-btn" onClick={() => handleView(patient)}>
                           <i className="fas fa-eye"></i>
                         </button>
-                        {patient.isAdded ? (
+                        {patient.isAdded && (
                           <>
                             <button className="edit-btn" onClick={() => handleEdit(patient)}>
                               <i className="fas fa-edit"></i>
@@ -439,14 +467,6 @@ const PatientsList = () => {
                               <i className="fas fa-trash"></i>
                             </button>
                           </>
-                        ) : (
-                          <button 
-                            className="transfer-btn" 
-                            onClick={() => handleTransferToAddPatient(patient)}
-                            title="Transfer to Hospital Records"
-                          >
-                            <i className="fas fa-exchange-alt"></i>
-                          </button>
                         )}
                       </td>
                     </tr>
@@ -454,22 +474,72 @@ const PatientsList = () => {
                 </tbody>
               </table>
             )}
-            {patients.length > 3 && (
-              <div className="view-more-less">
-                <button 
-                  className={showAllPatients ? "view-less-btn" : "view-more-btn"}
-                  onClick={toggleView}
-                >
-                  <i className={`fas fa-chevron-${showAllPatients ? 'up' : 'down'}`}></i>
-                  {showAllPatients ? 'View Less' : 'View More'}
-                </button>
-              </div>
-            )}
+        <div className="pagination-container">
+          <div className="pagination">
+            <button 
+              className="pagination-btn"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+
+            <span className="page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <button 
+              className="pagination-btn"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+            <style jsx>{`
+              .pagination-container {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 20px;
+                padding: 10px;
+              }
+              .pagination {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              }
+              .pagination-btn {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                padding: 8px 12px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+              }
+              .pagination-btn:hover:not(:disabled) {
+                background: #e9ecef;
+                border-color: #ced4da;
+              }
+              .pagination-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+              }
+              .page-info {
+                font-size: 14px;
+                color: #495057;
+                font-weight: 500;
+              }
+            `}</style>
           </div>
         )}
       </div>
 
-      {/* Add Popups */}
       {showViewPopup && selectedPatient && (
         <div className="popup-overlay">
           <div className="popup-content">
@@ -483,7 +553,7 @@ const PatientsList = () => {
               <div className="patient-details">
                 <p><strong>Name:</strong> {selectedPatient.name}</p>
                 <p><strong>Condition:</strong> {selectedPatient.condition}</p>
-                <p><strong>Admit Date:</strong> {selectedPatient.admitDate}</p>
+                <p><strong>Admit Date:</strong> {formatDate(selectedPatient.admitDate)}</p>
                 <p><strong>Doctor:</strong> {selectedPatient.doctor}</p>
                 <p><strong>Room:</strong> {selectedPatient.room}</p>
               </div>
@@ -559,7 +629,7 @@ const PatientsList = () => {
                   <button type="submit" className="save-btn">Save Changes</button>
                   <button 
                     type="button" 
-                    className="cancel-btn" 
+                    classLordName="cancel-btn" 
                     onClick={() => setShowEditPopup(false)}
                   >
                     Cancel
@@ -609,8 +679,19 @@ const PatientsList = () => {
           </div>
         </div>
       )}
+
+      {showAlert && (
+        <Alert 
+          message={alertMessage}
+          onClose={() => {
+            setShowAlert(false);
+            setAlertMessage('');
+          }}
+        />
+      )}
     </div>
   );
 };
+
 
 export default PatientsList; 

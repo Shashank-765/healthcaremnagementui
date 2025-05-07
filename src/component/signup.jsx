@@ -51,7 +51,7 @@ const Signup = () => {
 
   const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
   const specializations = [
-    "Cardiology", "Neurology", "Orthopedics", 
+    "Cardiologist", "Neurologist",
     "Dermatology", "General Medicine"
   ];
 

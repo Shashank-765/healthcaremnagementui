@@ -1546,3 +1546,8 @@ div.header-left{
 .submit-btn:hover {
   opacity: 0.8;
 }
+i.fas.fa-user-circle.user-icon{
+  color:black;
+  display:contents;
+  background-color:none;
+}

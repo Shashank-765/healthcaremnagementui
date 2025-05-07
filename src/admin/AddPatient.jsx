@@ -6,6 +6,7 @@ import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import Navbar from '../component/Navbar';
 import Cookies from 'js-cookie';
+import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
@@ -25,6 +26,11 @@ const AddPatient = () => {
     assignedDoctor: '',
     medicalHistory: ''
   });
+  const [profileImage, setProfileImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
 
   // Handle window resize
   useEffect(() => {
@@ -84,31 +90,21 @@ const AddPatient = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Get token and user role from cookies
-      const token = Cookies.get('token');
-      const userRole = Cookies.get('userRole');
-      
-      console.log('Current cookies:', {
-        token: Cookies.get('token'),
-        userRole: Cookies.get('userRole'),
-        userId: Cookies.get('userId')
-      });
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;   
       
       if (!token) {
-        console.error('No token found in cookies');
         alert('Please login first');
         navigate('/admin/login');
         return;
       }
 
-      if (userRole !== 'admin') {
-        console.error('User is not an admin');
+      if (userData.role !== 'admin') {
         alert('Please login as admin first');
         navigate('/admin/login');
         return;
       }
 
-      // Create patient data object matching backend requirements
       const patientData = {
         fullName: patientForm.fullName,
         email: patientForm.email,
@@ -120,49 +116,49 @@ const AddPatient = () => {
         medicalHistory: patientForm.medicalHistory
       };
 
-      console.log('Sending patient data:', patientData);
-
       const response = await fetch(`${API_URL}/patient/addpatient`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(patientData),
-        credentials: 'include' // Important for cookies
+        body: JSON.stringify(patientData)
       });
 
       const data = await response.json();
-      console.log('Server response:', data);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Clear all auth cookies
-          Cookies.remove('token');
-          Cookies.remove('userRole');
-          Cookies.remove('userId');
-          alert('Session expired. Please login again.');
-          navigate('/admin/login');
-          return;
-        }
-        throw new Error(data.message || 'Failed to add patient');
-      }
-
-      console.log('Patient added successfully:', data);
-      alert('Patient added successfully!');
-      navigate('/admin/patients');
-    } catch (error) {
-      console.error('Error adding patient:', error.message);
-      if (error.message.includes('token')) {
-        // Clear all auth cookies
-        Cookies.remove('token');
-        Cookies.remove('userRole');
-        Cookies.remove('userId');
-        alert('Session expired. Please login again.');
-        navigate('/admin/login');
+      
+      if (data.success) {
+        // Show success notification
+        setShowNotification(true);
+        setSuccess(true);
+        navigate('/admin/patients');
+        
+        // Clear form
+        setPatientForm({
+          fullName: '',
+          email: '',
+          medicalCondition: '',
+          admitDate: '',
+          medicalDocument: '',
+          roomNumber: '',
+          assignedDoctor: '',
+          medicalHistory: ''
+        });
+        setProfileImage(null);
+        
+        // Wait for 1 second before redirecting
+      
       } else {
-        alert(error.message || 'Failed to add patient. Please try again.');
+        // Show error notification
+        setError(data.message || 'Failed to add patient');
+        setShowNotification(true);
       }
+    } catch (err) {
+      console.error('Error adding patient:', err);
+      setError(err.message || 'Error adding patient. Please try again.');
+      setShowNotification(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -210,6 +206,22 @@ const AddPatient = () => {
       path: '/admin/history-list'
     },
   ];
+
+  const Notification = ({ message, type, onClose }) => {
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+      <div className={`notification ${type}`}>
+        {message}
+      </div>
+    );
+  };
 
   return (
     <div className="add-patient-container">
@@ -440,6 +452,18 @@ const AddPatient = () => {
           </form>
         </div>
       </div>
+
+      {showNotification && (
+        <Notification 
+          message={success ? "Patient added successfully!" : error}
+          type={success ? "success" : "error"}
+          onClose={() => {
+            setShowNotification(false);
+            setSuccess(false);
+            setError(null);
+          }}
+        />
+      )}
     </div>
   );
 };

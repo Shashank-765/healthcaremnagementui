@@ -7,13 +7,29 @@ import bannerImage from '../image/banner.png';
 import Cookies from 'js-cookie';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
-
 const AddDoctor = () => {
   const navigate = useNavigate();
   const [expandedItem, setExpandedItem] = useState('doctors');
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [errors, setErrors] = useState({
+    contactnumber: ""
+  });
+  const [doctorForm, setDoctorForm] = useState({
+    fullName: '',
+    specialization: '',
+    experience: '',
+    availability: '',
+    contactnumber: '',
+    email: '',
+    password: '',
+    qualification: '',
+    address: '',
+    bio: '',
+    profileImage: null
+  });
 
   // Handle window resize
   useEffect(() => {
@@ -99,26 +115,28 @@ const AddDoctor = () => {
     navigate('/');
   };
 
-  const [doctorForm, setDoctorForm] = useState({
-    fullName: '',
-    specialization: '',
-    experience: '',
-    availability: '',
-    contactnumber: '',
-    email: '',
-    password: '',
-    qualification: '',
-    address: '',
-    bio: '',
-    profileImage: null
-  });
+  const validatePhoneNumber = (number) => {
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(number)) {
+      return "Phone number must be exactly 10 digits";
+    }
+    return "";
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setDoctorForm(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === "contactnumber" ? value.replace(/[^\d]/g, '').slice(0, 10) : value
     }));
+
+    if (name === "contactnumber") {
+      const error = validatePhoneNumber(value.replace(/[^\d]/g, '').slice(0, 10));
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        contactnumber: error
+      }));
+    }
   };
 
   const handleImageChange = (e) => {
@@ -131,22 +149,31 @@ const AddDoctor = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
     try {
-      // Get token and user role from cookies
-      const token = Cookies.get('token');
-      const userRole = Cookies.get('userRole');
-      
+      // Get token and user role from localStorage
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      const token = userData?.token;
+
       if (!token) {
-        console.error('No token found in cookies');
-        alert('Please login first');
+        alert('No token found. Please login again.');
         navigate('/admin/login');
         return;
       }
 
-      if (userRole !== 'admin') {
+      if (userData?.role !== 'admin') {
         console.error('User is not an admin');
         alert('Please login as admin first');
         navigate('/admin/login');
+        return;
+      }
+
+      // Validate phone number
+      const contactError = validatePhoneNumber(doctorForm.contactnumber);
+      if (contactError) {
+        setErrors({ contactnumber: contactError });
+        setIsSubmitting(false);
         return;
       }
 
@@ -162,7 +189,7 @@ const AddDoctor = () => {
       formData.append('qualification', doctorForm.qualification);
       formData.append('address', doctorForm.address);
       formData.append('bio', doctorForm.bio);
-      
+
       if (doctorForm.profileImage) {
         formData.append('profileimage', doctorForm.profileImage);
       }
@@ -181,34 +208,17 @@ const AddDoctor = () => {
       const data = await response.json();
       console.log('Server response:', data);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Clear all auth cookies
-          Cookies.remove('token');
-          Cookies.remove('userRole');
-          Cookies.remove('userId');
-          alert('Session expired. Please login again.');
-          navigate('/admin/login');
-          return;
-        }
+      if (response.ok) {
+        alert('Doctor added successfully!');
+        navigate('/admin/doctors');
+      } else {
         throw new Error(data.message || 'Failed to add doctor');
       }
-
-      console.log('Doctor added successfully:', data);
-      alert('Doctor added successfully!');
-      navigate('/admin/doctors');
     } catch (error) {
-      console.log('Error adding doctor:', error.message);
-      if (error.message.includes('token')) {
-        // Clear all auth cookies
-        Cookies.remove('token');
-        Cookies.remove('userRole');
-        Cookies.remove('userId');
-        alert('Session expired. Please login again.');
-        navigate('/admin/login');
-      } else {
-        alert(error.message || 'Failed to add doctor. Please try again.');
-      }
+      console.error('Error adding doctor:', error.message);
+      alert('Failed to add doctor: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -340,10 +350,9 @@ const AddDoctor = () => {
                   <option value="">Select Specialization</option>
                   <option value="Cardiologist">Cardiologist</option>
                   <option value="Neurologist">Neurologist</option>
-                  <option value="Pediatrician">Pediatrician</option>
                   <option value="Dermatologist">Dermatologist</option>
-                  <option value="Orthopedic">Orthopedic</option>
-                  <option value="Gynecologist">Gynecologist</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="General Medicine">General Medicine</option>
                 </select>
               </div>
             </div>
@@ -393,6 +402,7 @@ const AddDoctor = () => {
                   placeholder="Enter contact number"
                   required
                 />
+                {errors.contactnumber && <span className="error">{errors.contactnumber}</span>}
               </div>
               <div className="form-group">
                 <label>
@@ -487,8 +497,8 @@ const AddDoctor = () => {
               <button type="button" className="cancel-btn" onClick={() => navigate('/admin/doctors')}>
                 Cancel
               </button>
-              <button type="submit" className="submit-btn">
-                Add Doctor
+              <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Doctor'}
               </button>
             </div>
           </form>

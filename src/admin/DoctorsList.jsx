@@ -39,14 +39,15 @@ const DoctorsList = () => {
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [originalEmail, setOriginalEmail] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch doctors data with filters
-  const fetchDoctors = async () => {
+  // Fetch doctors data with filters and pagination
+  const fetchDoctors = async (page = 1) => {
     try {
+      setLoading(true);
       const userData = JSON.parse(localStorage.getItem('userData'));
       const token = userData?.token;   
-      console.log('Token:', token); 
-
       // Build query parameters
       const queryParams = new URLSearchParams();
       if (searchQuery) {
@@ -55,6 +56,8 @@ const DoctorsList = () => {
       if (selectedSpecialization) {
         queryParams.append('specialization', selectedSpecialization);
       }
+      queryParams.append('page', page);
+      queryParams.append('limit', 10);
 
       const response = await axios.get(`${API_URL}/doctor/readdoctors?${queryParams.toString()}`, {
         headers: {
@@ -65,6 +68,8 @@ const DoctorsList = () => {
 
       if (response.data) {
         setDoctors(response.data.data);
+        setTotalPages(response.data.totalPages || 1);
+        setCurrentPage(response.data.page || 1);
       }
     } catch (error) {
       console.error('Error fetching doctors:', error);
@@ -74,10 +79,11 @@ const DoctorsList = () => {
     }
   };
 
-  // Update useEffect to include filters
+  // Update useEffect to include filters and pagination
   useEffect(() => {
-    fetchDoctors();
-  }, [searchQuery, selectedSpecialization]); // Re-fetch when filters change
+    fetchDoctors(currentPage);
+    // eslint-disable-next-line
+  }, [searchQuery, selectedSpecialization, currentPage]);
 
   // Handle window resize
   useEffect(() => {
@@ -307,44 +313,44 @@ const DoctorsList = () => {
   };
 
   // Update handleTransferToAddDoctor function
-  const handleTransferToAddDoctor = async (doctor) => {
-    try {
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      const token = userData?.token;   
-      if (!token) {
-        const userData = JSON.parse(localStorage.getItem('userData'));
-        token = userData?.token;
-      }
+  // const handleTransferToAddDoctor = async (doctor) => {
+  //   try {
+  //     const userData = JSON.parse(localStorage.getItem('userData'));
+  //     const token = userData?.token;   
+  //     if (!token) {
+  //       const userData = JSON.parse(localStorage.getItem('userData'));
+  //       token = userData?.token;
+  //     }
 
-      // Now transfer to adddoctor collection
-      const response = await axios.post(
-        `${API_URL}/admin/transfer-signup-data`,
-        {
-          doctorEmail: doctor.email
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+  //     // Now transfer to adddoctor collection
+  //     const response = await axios.post(
+  //       `${API_URL}/admin/transfer-signup-data`,
+  //       {
+  //         doctorEmail: doctor.email
+  //       },
+  //       {
+  //         headers: {
+  //           'Authorization': `Bearer ${token}`,
+  //           'Content-Type': 'application/json'
+  //         }
+  //       }
+  //     );
 
-      if (response.data.success) {
-        // Remove the transferred doctor from the list
-        setDoctors(doctors.filter(d => d.email !== doctor.email));
-        alert('Doctor transferred successfully to Add Doctor collection');
-      } else {
-        // Show error popup if doctor already exists
-        setErrorMessage(response.data.message || 'Doctor already exists in Add Doctor collection');
-        setShowErrorPopup(true);
-      }
-    } catch (error) {
-      console.error('Error transferring doctor:', error);
-      setErrorMessage(error.response?.data?.message || 'Failed to transfer doctor');
-      setShowErrorPopup(true);
-    }
-  };
+  //     if (response.data.success) {
+  //       // Remove the transferred doctor from the list
+  //       setDoctors(doctors.filter(d => d.email !== doctor.email));
+  //       alert('Doctor transferred successfully to Add Doctor collection');
+  //     } else {
+  //       // Show error popup if doctor already exists
+  //       setErrorMessage(response.data.message || 'Doctor already exists in Add Doctor collection');
+  //       setShowErrorPopup(true);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error transferring doctor:', error);
+  //     setErrorMessage(error.response?.data?.message || 'Failed to transfer doctor');
+  //     setShowErrorPopup(true);
+  //   }
+  // };
 
   // Update the file input handler
   const handleFileChange = (e) => {
@@ -387,11 +393,11 @@ const DoctorsList = () => {
     }
   };
 
-  // Remove the local filtering since we're now using API filtering
-  const filteredDoctors = doctors;
-
-  const toggleView = () => {
-    setShowAllDoctors(!showAllDoctors);
+  // Pagination controls
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
 
   return (
@@ -499,10 +505,8 @@ const DoctorsList = () => {
                     <option value="">All Specializations</option>
                     <option value="Cardiologist">Cardiologist</option>
                     <option value="Neurologist">Neurologist</option>
-                    <option value="Pediatrician">Pediatrician</option>
                     <option value="Dermatologist">Dermatologist</option>
                     <option value="Orthopedic">Orthopedic</option>
-                    <option value="Gynecologist">Gynecologist</option>
                   </select>
                 </div>
                 <div className="search-bar">
@@ -543,7 +547,7 @@ const DoctorsList = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredDoctors.slice(0, showAllDoctors ? filteredDoctors.length : 3).map(doctor => (
+                {doctors.map(doctor => (
                   <tr key={doctor._id}>
                     <td>{doctor.fullName}</td>
                     <td>{doctor.specialization}</td>
@@ -564,25 +568,76 @@ const DoctorsList = () => {
                       {/* <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
                         <i className="fas fa-calendar-plus"></i>
                       </button> */}
-                      <button className="transfer-btn" onClick={() => handleTransferToAddDoctor(doctor)}>
-                        <i className="fas fa-exchange-alt"></i>
-                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {filteredDoctors.length > 3 && (
-              <div className="view-more-less">
+            {/* Pagination Controls - ConfirmedAppointments style */}
+            <div className="pagination-container">
+              <div className="pagination">
                 <button 
-                  className={showAllDoctors ? "view-less-btn" : "view-more-btn"}
-                  onClick={toggleView}
+                  className="pagination-btn"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                 >
-                  <i className={`fas fa-chevron-${showAllDoctors ? 'up' : 'down'}`}></i>
-                  {showAllDoctors ? 'View Less' : 'View More'}
+                  <i className="fas fa-chevron-left"></i>
+                </button>
+                <span className="page-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button 
+                  className="pagination-btn"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <i className="fas fa-chevron-right"></i>
                 </button>
               </div>
-            )}
+            </div>
+            <style jsx>{`
+              .pagination-container {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 20px;
+                padding: 10px;
+              }
+
+              .pagination {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              }
+
+              .pagination-btn {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                padding: 8px 12px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+              }
+
+              .pagination-btn:hover:not(:disabled) {
+                background: #e9ecef;
+                border-color: #ced4da;
+              }
+
+              .pagination-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+              }
+
+              .page-info {
+                font-size: 14px;
+                color: #495057;
+                font-weight: 500;
+              }
+            `}</style>
           </div>
         )}
 
@@ -651,7 +706,7 @@ const DoctorsList = () => {
                       <option value="Cardiologist">Cardiologist</option>
                       <option value="Neurologist">Neurologist</option>
                       <option value="Dermatologist">Dermatologist</option>
-                      <option value="Orthopedic">Orthopedic</option>
+                      <option value="Orthopedics">Orthopedics</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -700,9 +755,9 @@ const DoctorsList = () => {
                   </div>
                   <div className="popup-footer">
                     <button type="submit" className="save-btn">Save Changes</button>
-                    <button type="button" className="transfer-btn" onClick={() => handleTransferToAddDoctor(selectedDoctor)}>
+                    {/* <button type="button" className="transfer-btn" onClick={() => handleTransferToAddDoctor(selectedDoctor)}>
                       <i className="fas fa-exchange-alt"></i> Transfer to Add Doctor
-                    </button>
+                    </button> */}
                     <button type="button" className="cancel-btn" onClick={() => setShowEditPopup(false)}>Cancel</button>
                   </div>
                 </form>

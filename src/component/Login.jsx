@@ -50,15 +50,12 @@ const Login = () => {
         const userData = {
           email: response.data.data.email,
           token: response.data.data.token,
-          role: formData.userType
+          role: formData.userType,
+          id: response.data.data._id
         };
 
         // Store in localStorage
         localStorage.setItem('userData', JSON.stringify(userData));
-        localStorage.setItem('userRole', formData.userType);
-
-        // Store token in cookie
-        document.cookie = `token=${userData.token}; path=/`;
 
         console.log('Stored user data:', userData);
         console.log('Current user type:', formData.userType);

@@ -4,7 +4,7 @@ import '../admin/AdminDashboard.css';
 import doctorImage from '../image/girl.png';
 import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
-import correct from '../image/correct.jpg';
+import correct from '../image/correct1.jpg';
 import Cookies from 'js-cookie';
 import useInsurancePatients from './useInsurancePatients';
 

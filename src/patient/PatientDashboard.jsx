@@ -55,16 +55,12 @@ const PatientDashboard = () => {
 
   // Add user data check
   useEffect(() => {
-    const userData = localStorage.getItem('userData');
+    const userData = JSON.parse(localStorage.getItem('userData'));
     
     try {
-      const parsedUserData = userData ? JSON.parse(userData) : null;
-      console.log('Parsed User Data:', parsedUserData);
-      
-      if (!parsedUserData || !parsedUserData.token || parsedUserData.role !== 'patient') {
+      if (!userData || !userData.token || userData.role !== 'patient') {
         console.log('No valid user data or wrong role, redirecting to login');
         localStorage.removeItem('userData');
-        localStorage.removeItem('userRole');
         navigate('/', { replace: true });
         return;
       }
@@ -75,7 +71,6 @@ const PatientDashboard = () => {
     } catch (error) {
       console.error('Error parsing user data:', error);
       localStorage.removeItem('userData');
-      localStorage.removeItem('userRole');
       navigate('/', { replace: true });
     }
   }, [navigate]);
