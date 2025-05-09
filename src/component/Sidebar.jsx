@@ -7,23 +7,29 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
   const navigate = useNavigate();
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const sidebarRef = useRef(null);
-  const [userRole, setUserRole] = useState('patient');
   const [activeItem, setActiveItem] = useState('dashboard');
 
-  useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'patient';
-    setUserRole(role);
-  }, []);
+  const getUserRole = () => {
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    if (!userData || !userData.token) {
+      return null;
+    }
+    return userData.role;
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
     navigate('/');
   };
 
   const handleDashboardClick = () => {
+    const role = getUserRole();
+    if (!role) {
+      navigate('/');
+      return;
+    }
     setActiveItem('dashboard');
-    navigate(userRole === 'patient' ? '/patient-dashboard' : '/doctor-dashboard');
+    navigate(role === 'patient' ? '/patient-dashboard' : '/doctor-dashboard');
   };
 
   const handleAppointmentClick = () => {
@@ -32,16 +38,36 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
   };
 
   const handleSubmenuClick = (path) => {
-    setActiveItem(path === '/book-appointment' ? 'book-appointment' : 'all-appointments');
-    navigate(path);
+    const role = getUserRole();
+    if (!role) {
+      navigate('/');
+      return;
+    }
+    if (role === 'patient') {
+      setActiveItem(path === '/book-appointment' ? 'book-appointment' : 'all-appointments');
+      navigate(path);
+    } else if (role === 'doctor' && path === '/total-appointments') {
+      setActiveItem('total-appointments');
+      navigate(path);
+    }
   };
 
   const handleMedicalHistoryClick = () => {
+    const role = getUserRole();
+    if (!role) {
+      navigate('/');
+      return;
+    }
     setActiveItem('medical');
     navigate('/medical-history');
   };
 
   const handlePatientHistoryClick = () => {
+    const role = getUserRole();
+    if (!role) {
+      navigate('/');
+      return;
+    }
     setActiveItem('patient-history');
     navigate('/doctor-dashboard/patient-history');
   };
@@ -51,6 +77,8 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
       setIsAppointmentOpen(true);
     }
   }, [isSubmenuOpen]);
+
+  const userRole = getUserRole();
 
   return (
     <div className={`sidebar ${isSidebarOpen ? 'expanded' : 'collapsed'}`} ref={sidebarRef}>

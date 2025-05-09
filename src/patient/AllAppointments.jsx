@@ -88,29 +88,41 @@ const AllAppointments = () => {
         return;
       }
 
-      const response = await axios.delete(
-        `${API_URL}/appointment/delete-appointment/id/${appointment._id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
+      console.log('Deleting appointment:', appointment._id);
+      console.log('API URL:', `${API_URL}/appointment/delete-appointment/${appointment._id}`);
+      
+      const response = await axios({
+        method: 'delete',
+        url: `${API_URL}/appointment/delete-appointment/${appointment._id}`,
+        headers: {
+          'Authorization': `Bearer ${userData.token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
-      if (response.data.success) {
-        await fetchAppointments(userData);
+      console.log('Delete response:', response);
+
+      if (response.status === 200 && response.data.success) {
+        // Remove the deleted appointment from the state
+        setAppointments(prevAppointments => 
+          prevAppointments.filter(apt => apt._id !== appointment._id)
+        );
         setShowDeleteModal(false);
+        setSelectedAppointment(null);
       } else {
-        setError(response.data.message || 'Failed to delete appointment');
+        setError(response.data?.message || 'Failed to delete appointment');
       }
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('Delete error:', error.message);
+      console.error('Error response:', error.response);
+      
       if (error.response?.status === 401) {
         setError('Session expired. Please try again from dashboard.');
         navigate('/patient-dashboard', { replace: true });
+      } else if (error.response?.status === 404) {
+        setError('Appointment not found or already deleted');
       } else {
-        setError('Error deleting appointment. Please try again.');
+        setError(error.response?.data?.message || 'Error deleting appointment. Please try again.');
       }
     }
   };

@@ -34,26 +34,16 @@ const DoctorDashboard = () => {
     
     try {
       const parsedUserData = userData ? JSON.parse(userData) : null;
-      console.log('Parsed User Data:', parsedUserData);
       
       if (!parsedUserData || !parsedUserData.token || parsedUserData.role !== 'doctor') {
-        console.log('No valid user data or wrong role, redirecting to login');
-        localStorage.removeItem('userData');
-        localStorage.removeItem('userRole');
-        navigate('/', { replace: true });
+        setError('Please login as a doctor to view dashboard');
         return;
       }
 
-      // If we reach here, user is authenticated and is a doctor
-      console.log('User authenticated as doctor');
-
     } catch (error) {
-      console.error('Error parsing user data:', error);
-      localStorage.removeItem('userData');
-      localStorage.removeItem('userRole');
-      navigate('/', { replace: true });
+      setError('Error loading user data');
     }
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -63,21 +53,18 @@ const DoctorDashboard = () => {
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         const token = userData.token;
         const doctorEmail = userData.email;
+        
         if (!token || userData.role !== 'doctor') {
           setError('Please login as a doctor to view dashboard');
           setLoading(false);
-          navigate('/', { replace: true });
           return;
         }
 
-
         if (!doctorEmail) {
-          setError('Doctor email not found in token');
+          setError('Doctor email not found');
           setLoading(false);
           return;
         }
-
-        console.log('Fetching dashboard data for doctor:', doctorEmail);
 
         const response = await axios.get(`${API_URL}/doctor/dashboard/${doctorEmail}`, {
           headers: { 
@@ -92,11 +79,10 @@ const DoctorDashboard = () => {
           setError(response.data.message || 'Failed to load dashboard');
         }
       } catch (err) {
-        console.error('Dashboard fetch error:', err.message);
-        setError('Error loading dashboard');
         if (err.response?.status === 401) {
-          localStorage.clear();
-          navigate('/', { replace: true });
+          setError('Session expired. Please login again');
+        } else {
+          setError('Error loading dashboard');
         }
       } finally {
         setLoading(false);
@@ -104,16 +90,29 @@ const DoctorDashboard = () => {
     };
 
     fetchDashboardData();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     // Check if doctor is in adddoctor
     const checkApproval = async () => {
       try {
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        const res = await axios.get(`${API_URL}/doctor/readdoctors/${userData.email}`);
+        const token = userData.token;
+        
+        if (!token) {
+          setError('No authentication token found');
+          return;
+        }
+
+        const res = await axios.get(`${API_URL}/doctor/readdoctors/${userData.email}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         setIsApproved(!!res.data.data && res.data.data._id);
       } catch (err) {
+        console.error('Error checking approval:', err);
         setIsApproved(false);
       }
     };
@@ -147,6 +146,7 @@ const DoctorDashboard = () => {
     } catch (err) {
       setApprovalError('Approval failed. Please try again.');
     } finally {
+      setLoading(false);
       setApproving(false);
     }
   };

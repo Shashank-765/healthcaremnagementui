@@ -11,6 +11,7 @@ import doctorImage from '../image/girl.png';
 // import doctorImage from '../image/doctor.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+const axios = require('axios');
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -28,7 +29,12 @@ const PatientDashboard = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showMedicalHistoryDropdown, setShowMedicalHistoryDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
-
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approvalError, setApprovalError] = useState(null);
   // New: Dashboard API integration
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,31 +95,71 @@ const PatientDashboard = () => {
           navigate('/', { replace: true });
           return;
         }
+        if(!isApproved){
+          const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
 
-        const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+          const data = await res.json();
+          if (data.success) {
+            setDashboard(data.data);
+            setIsApproved(true);
+          } else {
+            setError(data.message || 'Failed to load dashboard');
           }
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          setDashboard(data.data);
-        } else {
-          setError(data.message || 'Failed to load dashboard');
         }
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         setError('Error loading dashboard');
       } finally {
         setLoading(false);
+        setApproving(false);
       }
     };
 
     fetchDashboard();
   }, [navigate]);
+  const patienttransferApproval = async () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}'); 
+      const token = userData?.token;
+  
+      if (!token) {
+        setError('No authentication token found');
+        return;
+      }
+  
+      const res = await fetch(`${API_URL}/patient/transfer-patient/${userData.email}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
+      const data = await res.json();
+      setIsApproved(data?.data?._id ? true : false);
+    } catch (error) {
+      console.error('Error in patienttransferApproval:', error.message);
+      setIsApproved(false);
+      setError(error.response?.data?.message || 'Failed to process patient transfer');
+    }
+  };
+useEffect(()=>{
+  patienttransferApproval();
+},[]);
+const handleToggleApproval = async () =>{
+  if(!hasBeenClicked){
+    setIsApproved(prev => !prev);
+    setHasBeenClicked(true);
+    setApproving(true);
+    setApprovalError(null);
+  }
+  
+}
   // Dummy data for medical history
   const [medicalHistory, setMedicalHistory] = useState([
     { 
@@ -205,6 +251,13 @@ const PatientDashboard = () => {
     setShowProfileDropdown(false);
   };
 
+  const handleToggleAvailability = async () => {
+    setIsProcessing(true);
+    setIsAvailable(prev => !prev);
+    // In the future, you can add your backend call here
+    setTimeout(() => setIsProcessing(false), 500); // Simulate loading
+  };
+
   if (loading) return (
     <div className="loading-spinner">
       <i className="fas fa-spinner fa-spin"></i>
@@ -245,7 +298,7 @@ const PatientDashboard = () => {
             </div>
           </div>
           
-          <div className="row3 stats-row d-flex align-items-stretch">
+          <div className="dashboard-grid">
             {loading ? (
               <div className="loading-spinner">
                 <i className="fas fa-spinner fa-spin"></i>
@@ -258,45 +311,64 @@ const PatientDashboard = () => {
               </div>
             ) : (
               <>
-                <div className="col-md-4 col-sm-12 mb-4">
-                  <div className="stat-card h-100">
-                    <div className="stat-icon appointments">
-                      <i className="fas fa-calendar-check"></i>
-                    </div>
-                    <div className="stat-info">
-                      <h4>Total Appointments</h4>
-                      <div className="stat-number">{dashboard?.totalAppointments ?? '-'}</div>
+                <div className="stat-card-patient">
+                  <div className="stat-icon appointments">
+                    <i className="fas fa-calendar-check"></i>
+                  </div>
+                  <div className="stat-info-patient">
+                    <h4>Total Appointments</h4>
+                    <div className="stat-number">{dashboard?.totalAppointments ?? '-'}</div>
+                  </div>
+                </div>
+
+                <div className="stat-card-patient">
+                  <div className="stat-icon records">
+                    <i className="fas fa-notes-medical"></i>
+                  </div>
+                  <div className="stat-info-patient">
+                    <h4>Medical Records</h4>
+                    <div className="stat-number">{dashboard?.medicalRecords ?? '-'}</div>
+                    <div className="stat-trends">
+                      <span className="trend up">Last Updated: Today</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="col-md-4 col-sm-12 mb-4">
-                  <div className="stat-card h-100">
-                    <div className="stat-icon records">
-                      <i className="fas fa-notes-medical"></i>
-                    </div>
-                    <div className="stat-info">
-                      <h4>Medical Records</h4>
-                      <div className="stat-number">{dashboard?.medicalRecords ?? '-'}</div>
-                      <div className="stat-trends">
-                        <span className="trend up">Last Updated: Today</span>
-                      </div>
+                <div className="stat-card-patient">
+                  <div className="stat-icon prescriptions">
+                    <i className="fas fa-user-md"></i>
+                  </div>
+                  <div className="stat-info-patient">
+                    <h4>Doctor Name</h4>
+                    <div className="stat-number">{dashboard?.primaryDoctor?.fullName ?? '-'}</div>
+                    <div className="stat-trends">
+                      <span className="trend up">Primary Doctor</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="col-md-4 col-sm-12 mb-4">
-                  <div className="stat-card h-100">
-                    <div className="stat-icon prescriptions">
-                      <i className="fas fa-user-md"></i>
-                    </div>
-                    <div className="stat-info">
-                      <h4>Doctor Name</h4>
-                      <div className="stat-number">{dashboard?.primaryDoctor?.fullName ?? '-'}</div>
-                      <div className="stat-trends">
-                        <span className="trend up">Primary Doctor</span>
-                      </div>
-                    </div>
+                <div className="stat-card-patient">
+                  <div className="stat-icon available">
+                    <i className="fas fa-user-check"></i>
+                  </div>
+                  <div className="stat-info-patient">
+                    <h4>For Appointment</h4>
+                    <p className="doc-stat-number">
+                {isApproved ? "Available" : "Not Available"}
+              </p>
+              <div style={{ marginTop: 8 }}>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={isApproved}
+                    onChange={handleToggleApproval}
+                    disabled={approving || hasBeenClicked}
+                  />
+                  <span className="slider round"></span>
+                </label>
+                {approving && <span style={{ marginLeft: 8 }}>Processing...</span>}
+                {approvalError && <div style={{ color: 'red', marginTop: 4 }}>{approvalError}</div>}
+              </div>
                   </div>
                 </div>
               </>

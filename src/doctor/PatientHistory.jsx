@@ -29,24 +29,74 @@ const PatientHistory = () => {
   const [error, setError] = useState('');
   
   useEffect(() => {
+    console.log('PatientHistory Component Mounted');
     fetchPatientHistories();
-   
   }, []);
 
   const fetchPatientHistories = async () => {
     try { 
       setLoading(true);
+      console.log('Starting fetchPatientHistories');
+      
       const userData = JSON.parse(localStorage.getItem('userData'));
-      const email = userData?.email; // or userData?._id
+      console.log('UserData from localStorage:', userData);
+      
+      if (!userData) {
+        console.log('No userData found');
+        setError('Authentication required');
+        navigate('/login');
+        return;
+      }
+
+      if (!userData.token) {
+        console.log('No token found');
+        setError('Authentication required');
+        navigate('/login');
+        return;
+      }
+
+      if (!userData.email) {
+        console.log('No email found in userData');
+        setError('Invalid user data');
+        navigate('/login');
+        return;
+      }
+
+      if (userData.role !== 'doctor') {
+        console.log('User is not a doctor, role:', userData.role);
+        setError('Only doctors can access this page');
+        return;
+      }
+
+      const email = userData.email;
+      console.log('Making API call with email:', email);
+      
       const response = await axios.get(`${API_URL}/medical-history/personal-history/${email}`, {
         headers: {
           Authorization: `Bearer ${userData.token}`
         }
       });
+      
+      console.log('API Response:', {
+        success: response.data.success,
+        dataLength: response.data.data?.length
+      });
+      
       setPatientHistories(response.data.data);
     } catch (error) {
-      setError('Failed to fetch patient histories');
-      console.log('Error fetching patient histories:', error.message);
+      console.log('Error in fetchPatientHistories:', {
+        status: error.response?.status,
+        message: error.message,
+        responseData: error.response?.data
+      });
+      
+      if (error.response?.status === 401) {
+        console.log('Unauthorized error - Session expired');
+        setError('Session expired. Please login again');
+      } else {
+        console.log('Other error occurred');
+        setError('Failed to fetch patient histories');
+      }
     } finally {
       setLoading(false);
     }
@@ -63,18 +113,58 @@ const PatientHistory = () => {
     setSelectedPatient(null);
   };
 
-  const handleViewClick = (patient) => {
-    setSelectedPatient(patient);
+  const handleViewClick = (history) => {
+    if (!history || !history._id) {
+      console.error('Invalid history data:', history);
+      setError('Invalid medical history data');
+      return;
+    }
+
+    setSelectedPatient({
+      _id: history._id,
+      patientId: history.patientId,
+      patientName: history.patientName,
+      doctorName: history.doctorName,
+      condition: history.condition || '',
+      notes: history.notes || '',
+      date: history.date,
+      version: history.version || 1
+    });
     setShowViewModal(true);
     setEditMode(false);
   };
 
   const handleEditClick = (history) => {
-    setSelectedPatient(history);
-    setEditHistory({
-      condition: history.condition,
-      notes: history.notes
-    });
+    console.log('Editing history:', history);
+    // Make sure we have all required data
+    if (!history || !history._id) {
+      console.error('Invalid history data:', history);
+      setError('Invalid medical history data');
+      return;
+    }
+
+    // Store the complete history object
+    const selectedPatientData = {
+      _id: history._id,
+      patientId: history.patientId,
+      patientName: history.patientName,
+      doctorName: history.doctorName,
+      condition: history.condition || '',
+      notes: history.notes || '',
+      date: history.date,
+      version: history.version || 1
+    };
+
+    console.log('Setting selected patient data:', selectedPatientData);
+    setSelectedPatient(selectedPatientData);
+
+    const editHistoryData = {
+      condition: history.condition || '',
+      notes: history.notes || ''
+    };
+    console.log('Setting edit history data:', editHistoryData);
+    setEditHistory(editHistoryData);
+
     setShowViewModal(true);
     setEditMode(true);
   };
@@ -90,32 +180,94 @@ const PatientHistory = () => {
   const handleSaveEdit = async () => {
     try {
       setLoading(true);
-      console.log('Selected patient for edit:', selectedPatient._id);
+      setError(''); // Clear any previous errors
+      
       const userData = JSON.parse(localStorage.getItem('userData'));
-      const email = userData?.email;
+      
+      if (!userData || !userData.token) {
+        console.error('No user data or token found');
+        setError('Authentication required');
+        return;
+      }
+
+      if (!selectedPatient) {
+        console.error('No selected patient data');
+        setError('No patient record selected');
+        return;
+      }
+
+      if (!selectedPatient._id) {
+        console.error('Missing _id in selected patient:', selectedPatient);
+        setError('Invalid patient record: Missing record ID');
+        return;
+      }
+
+      if (!editHistory.condition || !editHistory.notes) {
+        console.error('Missing required fields in edit history:', editHistory);
+        setError('Condition and notes are required');
+        return;
+      }
+
+      // Log the state before making the request
+      console.log('Selected Patient:', selectedPatient);
+      console.log('Edit History:', editHistory);
+
+      const requestData = {
+        historyId: selectedPatient._id,
+        condition: editHistory.condition.trim(),
+        notes: editHistory.notes.trim(),
+        date: selectedPatient.date
+      };
+
+      console.log('Saving edit with data:', {
+        ...requestData,
+        doctorEmail: userData.email
+      });
+
       const response = await axios.put(
-        `${API_URL}/medical-history/edit/${selectedPatient._id}`,
-        {
-          condition: editHistory.condition,
-          notes: editHistory.notes
-        },
+        `${API_URL}/medical-history/edit/${userData.email}`,
+        requestData,
         {
           headers: {
             Authorization: `Bearer ${userData.token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          timeout: 10000 // Add a 10 second timeout
         }
       );
+
+      console.log('Edit response:', response.data);
+
       if (response.data.success) {
         setShowViewModal(false);
         setEditMode(false);
-        fetchPatientHistories();
+        setEditHistory(null);
+        setSelectedPatient(null);
+        await fetchPatientHistories(); // Refresh the list
         alert('Medical history updated successfully!');
       } else {
-        setError(response.data.message);
+        console.error('Update failed:', response.data);
+        setError(response.data.message || 'Failed to update medical history');
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to update medical history');
+      console.error('Error updating medical history:', {
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data
+      });
+      
+      if (error.code === 'ECONNABORTED') {
+        setError('Request timed out. Please try again.');
+      } else if (error.response?.status === 401) {
+        setError('Session expired. Please login again');
+        navigate('/login');
+      } else if (error.response?.status === 404) {
+        setError('Medical history record not found');
+      } else if (error.response?.status === 400) {
+        setError(error.response.data.message || 'Invalid request data');
+      } else {
+        setError(error.response?.data?.message || 'Failed to update medical history. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -137,15 +289,29 @@ const PatientHistory = () => {
   const handleSaveNewHistory = async () => {
     try {
       setLoading(true);
+      console.log('Starting handleSaveNewHistory');
+      
       const userData = JSON.parse(localStorage.getItem('userData'));
-      console.log("Full userData:", userData);
+      console.log('UserData in handleSaveNewHistory:', {
+        hasData: !!userData,
+        hasToken: !!userData?.token,
+        role: userData?.role
+      });
 
-      if (!userData || !userData.token || !userData.email) {
-        setError('Not authenticated. Please login again.');
+      if (!userData || !userData.token) {
+        console.log('No userData or token in handleSaveNewHistory');
+        setError('Authentication required');
+        return;
+      }
+
+      if (userData.role !== 'doctor') {
+        console.log('User is not a doctor in handleSaveNewHistory');
+        setError('Only doctors can access this page');
         return;
       }
 
       if (!newPatientHistory.patientEmail || !newPatientHistory.condition || !newPatientHistory.notes) {
+        console.log('Missing required fields in newPatientHistory');
         setError('Please fill in all required fields');
         return;
       }
@@ -158,7 +324,7 @@ const PatientHistory = () => {
         date: new Date()
       };
 
-      console.log("Sending history data:", historyData);
+      console.log('Sending history data:', historyData);
 
       const response = await axios.post(
         `${API_URL}/medical-history/medical-create`, 
@@ -171,6 +337,11 @@ const PatientHistory = () => {
         }
       );
 
+      console.log('Create history response:', {
+        success: response.data.success,
+        message: response.data.message
+      });
+
       if (response.data.success) {
         setShowCreateModal(false);
         fetchPatientHistories();
@@ -179,18 +350,20 @@ const PatientHistory = () => {
           condition: '',
           notes: ''
         });
-        // Show success message
         alert('Medical history created successfully!');
       } else {
         setError(response.data.message);
       }
     } catch (error) {
-      console.error('Full error details:', error.response?.data);
+      console.log('Error in handleSaveNewHistory:', {
+        status: error.response?.status,
+        message: error.message,
+        responseData: error.response?.data
+      });
+      
       if (error.response?.status === 401) {
-        // Handle unauthorized error
-        localStorage.clear(); // Clear invalid credentials
-        navigate('/medical-history'); // Redirect to login
-        setError('Session expired. Please login again.');
+        console.log('Unauthorized error in handleSaveNewHistory');
+        setError('Session expired. Please login again');
       } else {
         setError(error.response?.data?.message || 'Failed to create patient history');
       }
@@ -260,31 +433,51 @@ const PatientHistory = () => {
                     <td colSpan="6" className="text-center">No patient histories found</td>
                   </tr>
                 ) : (
-                  displayedRecords.map((history) => (
-                    <tr key={history._id}>
+                  displayedRecords.map((history) => {
+                    // Get the latest history record from the chain
+                    const latestHistory = history.historyChain?.[0];
+                    if (!latestHistory) {
+                      console.error('No history record found in chain:', history);
+                      return null;
+                    }
+                    return (
+                      <tr key={latestHistory._id}>
                       <td>{history.patientName || 'N/A'}</td>
                       <td>{history.doctorName || 'N/A'}</td>
-                      <td>{history.condition}</td>
-                      <td>{history.notes}</td>
+                        <td>{latestHistory.condition || 'N/A'}</td>
+                        <td>{latestHistory.notes || 'N/A'}</td>
                       <td>{new Date(history.date).toLocaleDateString()}</td>
                       <td>
                         <div className="action-buttons">
                           <button 
                             className="action-btn view"
-                            onClick={() => handleViewClick(history)}
+                              onClick={() => handleViewClick({
+                                ...history,
+                                _id: latestHistory._id,
+                                condition: latestHistory.condition,
+                                notes: latestHistory.notes,
+                                version: latestHistory.version
+                              })}
                           >
                             <i className="fas fa-eye"></i>
                           </button>
                           <button 
                             className="action-btn edit"
-                            onClick={() => handleEditClick(history)}
+                              onClick={() => handleEditClick({
+                                ...history,
+                                _id: latestHistory._id,
+                                condition: latestHistory.condition,
+                                notes: latestHistory.notes,
+                                version: latestHistory.version
+                              })}
                           >
                             <i className="fas fa-pen"></i>
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  }).filter(Boolean)
                 )}
               </tbody>
             </table>

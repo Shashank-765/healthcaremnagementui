@@ -31,20 +31,15 @@ const TotalAppointments = () => {
       setLoading(true);
       const userData = JSON.parse(localStorage.getItem('userData'));
       
-      console.log('User data from localStorage:', {
-        hasToken: !!userData?.token,
-        role: userData?.role,
-        email: userData?.email,
-        fullName: userData?.fullName
-      });
-
       if (!userData || !userData.token) {
         setError('Authentication required');
+        navigate('/');
         return;
       }
 
       if (userData.role !== 'doctor') {
         setError('Only doctors can access this page');
+        navigate('/');
         return;
       }
 
@@ -53,13 +48,6 @@ const TotalAppointments = () => {
           'Authorization': `Bearer ${userData.token}`,
           'Content-Type': 'application/json'
         }
-      });
-
-      console.log('API Response:', {
-        success: response.data.success,
-        message: response.data.message,
-        doctor: response.data.data?.doctor,
-        appointmentsCount: response.data.data?.appointments?.length || 0
       });
 
       if (response.data.success) {
@@ -74,20 +62,11 @@ const TotalAppointments = () => {
         setError(response.data.message || 'Failed to fetch appointments');
       }
     } catch (error) {
-      console.error('Error fetching appointments:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      if (error.response?.status === 404) {
-        setError('No appointments found for this doctor');
-      } else if (error.response?.status === 401) {
-        setError('Session expired. Please login again');
+      if (error.response?.status === 401) {
+        localStorage.removeItem('userData');
+        navigate('/');
       } else if (error.response?.status === 403) {
         setError('You do not have permission to view appointments');
-      } else if (error.response?.status === 500) {
-        setError('Server error. Please try again later.');
       } else {
         setError(error.response?.data?.message || 'Error loading appointments');
       }
@@ -175,7 +154,7 @@ const TotalAppointments = () => {
       }
 
       const response = await axios.delete(
-        `${API_URL}/appointment/delete-appointment/id/${appointmentId}`,
+        `${API_URL}/appointment/delete-appointment/${appointmentId}`,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,

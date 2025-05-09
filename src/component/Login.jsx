@@ -32,18 +32,13 @@ const Login = () => {
     
     try {
       const endpoint = formData.userType === 'doctor' ? '/doctor/doctorlogin' : '/patient/patientlogin';
-      console.log('Making API call to:', `${API_URL}${endpoint}`);
       
       const loginData = {
         email: formData.email.trim(),
         password: formData.password.trim()
       };
       
-      console.log('Sending login data:', loginData);
-      
       const response = await axios.post(`${API_URL}${endpoint}`, loginData);
-
-      console.log('API Response:', response.data);
 
       if (response.data.statusCode === 200 && response.data.data) {
         // Store complete user data
@@ -51,27 +46,23 @@ const Login = () => {
           email: response.data.data.email,
           token: response.data.data.token,
           role: formData.userType,
-          id: response.data.data._id
+          id: response.data.data._id,
+          fullName: response.data.data.fullName || response.data.data.name
         };
 
+        // Clear any existing data first
+        localStorage.removeItem('userData');
+        
         // Store in localStorage
         localStorage.setItem('userData', JSON.stringify(userData));
 
-        console.log('Stored user data:', userData);
-        console.log('Current user type:', formData.userType);
-
-        // Immediate navigation without setTimeout
+        // Navigate based on role
         if (formData.userType === 'doctor') {
-          console.log('Redirecting to doctor dashboard...');
-          navigate('/doctor-dashboard', { replace: true });
+          navigate('/doctor-dashboard');
         } else {
-          console.log('Redirecting to patient dashboard...');
-          navigate('/patient-dashboard', { replace: true });
+          navigate('/patient-dashboard');
         }
 
-        // Clear any existing errors
-        setError('');
-        
         // Clear form data
         setFormData({
           email: '',
@@ -84,8 +75,6 @@ const Login = () => {
         throw new Error(response.data.message || 'Login failed');
       }
     } catch (error) {
-      console.log('Login error:', error.message);
-      
       // Handle specific error cases
       if (error.response?.status === 401) {
         setError('Invalid email or password');

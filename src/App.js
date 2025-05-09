@@ -27,9 +27,10 @@ import InsurancePatientList from './insurance/PatientList';
 import HistoryList from './admin/HistoryList';
 // Protected Route component
 const ProtectedRoute = ({ children, allowedRoles = ['doctor'] }) => {
-  const userRole = localStorage.getItem('userRole');
+  const userData = JSON.parse(localStorage.getItem('userData'));
+  const userRole = userData?.role;
   
-  if (!userRole || !allowedRoles.includes(userRole)) {
+  if (!userData || !userData.token || !userRole || !allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
   }
   

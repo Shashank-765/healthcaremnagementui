@@ -32,7 +32,7 @@ const InsurancePatientList = () => {
       return;
     }
     const patientWithHistory = await handleViewPatient(patient);
-    if (patientWithHistory) {
+    if (patientWithHistory) {   
       setSelectedPatient(patientWithHistory);
       setShowViewPopup(true);
     }

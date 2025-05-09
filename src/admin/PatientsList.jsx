@@ -164,7 +164,7 @@ const PatientsList = () => {
         setError(response.data.message || 'Failed to fetch patients data');
       }
     } catch (err) {
-      console.error('Error fetching patients:', err);
+      console.error('Error fetching patients:', err.message);
       setError('Unable to fetch patients data. Please try again later.');
     } finally {
       setLoading(false);

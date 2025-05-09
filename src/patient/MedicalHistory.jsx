@@ -19,6 +19,14 @@ const MedicalHistory = () => {
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCreatePopup, setShowCreatePopup] = useState(false);
+  const [newHistory, setNewHistory] = useState({
+    fullName: '',
+    doctorName: '',
+    condition: '',
+    date: '',
+    notes: ''
+  });
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('userData'));
@@ -128,8 +136,24 @@ const MedicalHistory = () => {
           </div>
         </div>
         <div className="medical-history-container">
-          <div className="section-header">
+          <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2>My Medical History</h2>
+            <button
+              className="create-history-btn"
+              style={{
+                background: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                padding: '8px 18px',
+                borderRadius: '5px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                marginLeft: '16px'
+              }}
+              onClick={() => setShowCreatePopup(true)}
+            >
+              + Create Medical History
+            </button>
           </div>
           <div className="table-responsive">
             {loading ? (
@@ -199,6 +223,94 @@ const MedicalHistory = () => {
         </div>
       </div>
       {showModal && <ViewModal record={selectedRecord} onClose={closeModal} />}
+      {showCreatePopup && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Add Medical History</h2>
+              <button className="close-btn" onClick={() => setShowCreatePopup(false)}>&times;</button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const userData = JSON.parse(localStorage.getItem('userData'));
+                try {
+                  await axios.post(
+                    `${API_URL}/medical-history/self-history`,
+                    {
+                      fullName: newHistory.fullName,
+                      doctorName: newHistory.doctorName,
+                      condition: newHistory.condition,
+                      notes: newHistory.notes,
+                      date: newHistory.date
+                    },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${userData.token}`
+                      }
+                    }
+                  );
+                  fetchMedicalHistory();
+                  setShowCreatePopup(false);
+                  setNewHistory({ fullName: '', doctorName: '', condition: '', date: '', notes: '' });
+                } catch (err) {
+                  alert('Failed to create medical history');
+                }
+              }}
+            >
+              <div className="form-group">
+                <label>Full Name:</label>
+                <input
+                  type="text"
+                  value={newHistory.fullName}
+                  onChange={e => setNewHistory({ ...newHistory, fullName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Doctor Name:</label>
+                <input
+                  type="text"
+                  value={newHistory.doctorName}
+                  onChange={e => setNewHistory({ ...newHistory, doctorName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Condition:</label>
+                <input
+                  type="text"
+                  value={newHistory.condition}
+                  onChange={e => setNewHistory({ ...newHistory, condition: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Date:</label>
+                <input
+                  type="date"
+                  value={newHistory.date}
+                  onChange={e => setNewHistory({ ...newHistory, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Notes:</label>
+                <input
+                  type="text"
+                  value={newHistory.notes}
+                  onChange={e => setNewHistory({ ...newHistory, notes: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="submit" className="save-btn" style={{ background: '#4CAF50', color: 'white' }}>Save</button>
+                <button type="button" className="cancel-btn" onClick={() => setShowCreatePopup(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
