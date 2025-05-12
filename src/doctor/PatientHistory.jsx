@@ -79,7 +79,8 @@ const PatientHistory = () => {
       
       console.log('API Response:', {
         success: response.data.success,
-        dataLength: response.data.data?.length
+        dataLength: response.data.data?.length,
+        firstRecord: response.data.data?.[0] // Log the first record to see its structure
       });
       
       setPatientHistories(response.data.data);
@@ -440,42 +441,56 @@ const PatientHistory = () => {
                       console.error('No history record found in chain:', history);
                       return null;
                     }
+
+                    // Format the date properly
+                    const formattedDate = latestHistory.date 
+                      ? new Date(latestHistory.date).toLocaleDateString()
+                      : 'N/A';
+
+                    console.log('Rendering history:', {
+                      patientName: history.patientName,
+                      doctorName: history.doctorName,
+                      history
+                    });
+
                     return (
                       <tr key={latestHistory._id}>
-                      <td>{history.patientName || 'N/A'}</td>
-                      <td>{history.doctorName || 'N/A'}</td>
+                        <td>{history.patientName || 'N/A'}</td>
+                        <td>{history.doctorName || 'N/A'}</td>
                         <td>{latestHistory.condition || 'N/A'}</td>
                         <td>{latestHistory.notes || 'N/A'}</td>
-                      <td>{new Date(history.date).toLocaleDateString()}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button 
-                            className="action-btn view"
+                        <td>{formattedDate}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button 
+                              className="action-btn view"
                               onClick={() => handleViewClick({
                                 ...history,
                                 _id: latestHistory._id,
                                 condition: latestHistory.condition,
                                 notes: latestHistory.notes,
+                                date: latestHistory.date,
                                 version: latestHistory.version
                               })}
-                          >
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          <button 
-                            className="action-btn edit"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </button>
+                            <button 
+                              className="action-btn edit"
                               onClick={() => handleEditClick({
                                 ...history,
                                 _id: latestHistory._id,
                                 condition: latestHistory.condition,
                                 notes: latestHistory.notes,
+                                date: latestHistory.date,
                                 version: latestHistory.version
                               })}
-                          >
-                            <i className="fas fa-pen"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            >
+                              <i className="fas fa-pen"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   }).filter(Boolean)
                 )}
