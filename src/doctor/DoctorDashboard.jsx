@@ -104,7 +104,7 @@ const DoctorDashboard = () => {
           return;
         }
 
-        const res = await axios.get(`${API_URL}/doctor/readdoctors/${userData.email}`, {
+        const res = await axios.get(`${API_URL}/doctor/readdoctorstransfer/${userData.email}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -318,7 +318,7 @@ const DoctorDashboard = () => {
         {/* Appointments and Statistics Row */}
         <div className="dashboard-row">
           {/* Recent Appointments Column */}
-          <div className="dashboard-col-left">
+          <div className="dashboard-col-full">
             <div className="recent-appointments">
               <div className="section-header">
                 <h2>Recent Appointments</h2>
@@ -336,9 +336,9 @@ const DoctorDashboard = () => {
                     dashboardData.recentAppointments.map((appointment, index) => (
                       <tr key={index}>
                         <td>{appointment.patientName}</td>
-                        <td>{appointment.time}</td>
+                        <td>{appointment.appointmentDate + ' ' + appointment.appointmentTime}</td>
                         <td>
-                          <span className={`status-badge ${appointment.status.toLowerCase()}`}>
+                          <span className={`status-badge ${appointment.status}`}>
                             {appointment.status}
                           </span>
                         </td>
@@ -346,39 +346,17 @@ const DoctorDashboard = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" className="no-appointments">
+                      <td colSpan="4" className="no-appointments">
                         No recent appointments
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-            </div>
-          </div>
-
-          {/* Patient Statistics Column */}
-          <div className="dashboard-col-right">
-            <div className="statistics-card">
-              <div className="section-header">
-                <div>
-                  <h2>Patient Statistics</h2>
-                  <p className="stats-subtitle">Weekly Overview</p>
-                </div>
-              </div>
-              <div className="stats-container">
-                {weeklyStats.map((stat) => (
-                  <div key={stat.day} className="stat-bar-container">
-                    <div className="stat-bar-wrapper">
-                      <div
-                        className="stat-bar"
-                        style={{ height: `${(stat.value / 25) * 100}%` }}
-                      >
-                        <span className="stat-value">{stat.value}</span>
-                      </div>
-                    </div>
-                    <span className="stat-label">{stat.day}</span>
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px' }}>
+                <button className="view-more-btn" onClick={() => navigate('/total-appointments')}>
+                  View More
+                </button>
               </div>
             </div>
           </div>

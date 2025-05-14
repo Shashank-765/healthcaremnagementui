@@ -32,6 +32,9 @@ const AllAppointments = () => {
         return;
       }
 
+      console.log('Fetching appointments with token:', userData.token);
+      console.log('API URL:', `${API_URL}/appointment/patient`);
+
       const response = await axios.get(
         `${API_URL}/appointment/patient`,
         {
@@ -46,17 +49,32 @@ const AllAppointments = () => {
 
       if (response.data.success) {
         setAppointments(response.data.data || []);
+        if (!response.data.data || response.data.data.length === 0) {
+          setError('You have no appointments yet. Book your first appointment!');
+        }
       } else {
         setError(response.data.message || 'Failed to fetch appointments');
       }
     } catch (error) {
       console.error('Error fetching appointments:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       
       if (error.response?.status === 401) {
         setError('Session expired. Please log in again.');
         navigate('/patient-dashboard', { replace: true });
+      } else if (error.response?.status === 404) {
+        if (error.response.data?.message?.includes('No appointments found')) {
+          setError('You have no appointments yet. Book your first appointment!');
+          setAppointments([]);
+        } else {
+          setError('Appointments endpoint not found. Please check the API configuration.');
+        }
       } else {
-        setError(error.response?.data?.message || 'Error loading appointments');
+        setError(error.response?.data?.message || 'Error loading appointments. Please try again later.');
       }
     } finally {
       setLoading(false);
@@ -76,7 +94,7 @@ const AllAppointments = () => {
 
   // Filter appointments based on search query
   const filteredAppointments = appointments.filter((appointment) =>
-    appointment.doctorId?.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+    appointment.doctor?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleDelete = async (appointment) => {
@@ -87,10 +105,6 @@ const AllAppointments = () => {
         navigate('/patient-dashboard', { replace: true });
         return;
       }
-
-      console.log('Deleting appointment:', appointment._id);
-      console.log('API URL:', `${API_URL}/appointment/delete-appointment/${appointment._id}`);
-      
       const response = await axios({
         method: 'delete',
         url: `${API_URL}/appointment/delete-appointment/${appointment._id}`,
@@ -232,7 +246,7 @@ const AllAppointments = () => {
                 <tbody>
                   {filteredAppointments.map((appointment) => (
                     <tr key={appointment._id}>
-                      <td>Dr. {appointment.doctorId?.fullName || 'N/A'}</td>
+                      <td>Dr. {appointment.doctor?.name || 'N/A'}</td>
                       {/* <td>
                         {appointment.appointmentDate ? 
                           new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
@@ -290,7 +304,7 @@ const AllAppointments = () => {
             </div>
             <div className="modal-body">
               <div className="appointment-details">
-                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'N/A'}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctor?.name || 'N/A'}</p>
                 <p><strong>Department:</strong> {selectedAppointment.department || 'N/A'}</p>
                 <p><strong>Date:</strong> {
                   selectedAppointment.appointmentDate ? 
@@ -327,7 +341,7 @@ const AllAppointments = () => {
             <div className="modal-body">
               <p>Are you sure you want to delete this appointment?</p>
               <div className="appointment-summary">
-                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctorId?.fullName || 'N/A'}</p>
+                <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctor?.name || 'N/A'}</p>
                 <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
                 <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
               </div>

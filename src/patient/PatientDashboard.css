@@ -1544,7 +1544,6 @@ border-radius: 10px;
 .banner-content-patient {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
   display: flex;
   align-items: center;
   padding: 30px;

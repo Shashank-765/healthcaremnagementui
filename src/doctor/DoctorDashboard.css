@@ -162,19 +162,10 @@
     margin: 16px;
     width: calc(100% - 32px);
   }
-
-  .dashboard-col-left,
-  .dashboard-col-right {
+  .dashboard-col-full {
+    flex: 0 0 100%;
+    max-width: 100%;
     width: 100%;
-    min-width: 100%;
-  }
-
-  .stats-container {
-    height: 200px;
-  }
-
-  .stat-bar-container {
-    width: 30px;
   }
   .admin-sidebar {
     width: 180px;
@@ -252,8 +243,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 100%);
-  display: flex;
+    display: flex;
   align-items: center;
   padding: 2rem 4rem;
 }
@@ -603,17 +593,13 @@
 /* Row Layout */
 .dashboard-row {
   display: flex;
-  gap: 24px;
+  width: 100%;
 }
 
-.dashboard-col-left {
-  flex: 2;
+.dashboard-col-full {
+  flex: 0 0 100%;
+  max-width: 100%;
   min-width: 0;
-}
-
-.dashboard-col-right {
-  flex: 1;
-  min-width: 300px;
 }
 
 /* Recent Appointments */
@@ -782,4 +768,20 @@
   padding: 1rem;
   color: #666;
   font-style: italic;
+}
+
+.view-more-btn {
+  background-color: var(--primary-blue);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.view-more-btn:hover {
+  background-color: #155ab6;
 }

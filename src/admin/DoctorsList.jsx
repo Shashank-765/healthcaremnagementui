@@ -67,6 +67,7 @@ const DoctorsList = () => {
       });
 
       if (response.data) {
+        console.log('Doctors data received:', response.data.data); // Debug log
         setDoctors(response.data.data);
         setTotalPages(response.data.totalPages || 1);
         setCurrentPage(response.data.page || 1);
@@ -507,6 +508,7 @@ const DoctorsList = () => {
                     <option value="Neurologist">Neurologist</option>
                     <option value="Dermatologist">Dermatologist</option>
                     <option value="Orthopedic">Orthopedic</option>
+                    <option value="General Medicine">General Medicine</option>
                   </select>
                 </div>
                 <div className="search-bar">
@@ -540,37 +542,35 @@ const DoctorsList = () => {
                   <th>Full Name</th>
                   <th>Specialization</th>
                   <th>Experience</th>
-                 {/*  <th>Availability</th> */}
                   <th>Contact Number</th>
                   <th>Email</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {doctors.map(doctor => (
-                  <tr key={doctor._id}>
-                    <td>{doctor.fullName}</td>
-                    <td>{doctor.specialization}</td>
-                   <td>{doctor.experience}</td>
-                    {/*  <td>{doctor.Availability || 'Not specified'}</td> */}
-                    <td>{doctor.contactnumber || 'Not specified'}</td>
-                    <td>{doctor.email || 'Not specified'}</td>
-                    <td className="action-buttons">
-                      <button className="view-btn" onClick={() => handleView(doctor)}>
-                        <i className="fas fa-eye"></i>
-                      </button>
-                      <button className="edit-btn" onClick={() => handleEdit(doctor)}>
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button className="delete-btn" onClick={() => handleDelete(doctor)}>
-                        <i className="fas fa-trash"></i>
-                      </button>
-                      {/* <button className="schedule-btn" onClick={() => handleSchedule(doctor)}>
-                        <i className="fas fa-calendar-plus"></i>
-                      </button> */}
-                    </td>
-                  </tr>
-                ))}
+                {doctors.map(doctor => {
+                  console.log('Rendering doctor:', doctor); // Debug log
+                  return (
+                    <tr key={doctor._id}>
+                      <td>{doctor.fullName}</td>
+                      <td>{doctor.specialization}</td>
+                      <td>{doctor.experience}</td>
+                      <td>{doctor.contactnumber}</td>
+                      <td>{doctor.email}</td>
+                      <td className="action-buttons">
+                        <button className="view-btn" onClick={() => handleView(doctor)}>
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button className="edit-btn" onClick={() => handleEdit(doctor)}>
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDelete(doctor)}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {/* Pagination Controls - ConfirmedAppointments style */}
@@ -707,6 +707,8 @@ const DoctorsList = () => {
                       <option value="Neurologist">Neurologist</option>
                       <option value="Dermatologist">Dermatologist</option>
                       <option value="Orthopedics">Orthopedics</option>
+                      <option value="General Medicine">General Medicine</option>
+
                     </select>
                   </div>
                   <div className="form-group">

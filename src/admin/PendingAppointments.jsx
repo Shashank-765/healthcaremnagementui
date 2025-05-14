@@ -337,7 +337,7 @@ const PendingAppointments = () => {
                     <th>Doctor Name</th>
                     <th>Specialization</th>
                     <th>Patient Name</th>
-                    <th>Date & Time</th>
+                    {/* <th>Date & Time</th> */}
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -348,7 +348,7 @@ const PendingAppointments = () => {
                       <td>{appointment.doctor.name}</td>
                       <td>{appointment.doctor.specialization}</td>
                       <td>{appointment.patient.name}</td>
-                      <td>{appointment.appointmentTime}</td>
+                      {/* <td>{appointment.appointmentTime}</td> */}
                       <td>
                         <span className={`status-badge ${appointment.status.toLowerCase()}`}>
                           {appointment.status}
@@ -470,7 +470,7 @@ const PendingAppointments = () => {
                   </div>
                   <div className="detail-section">
                     <h3>Appointment Information</h3>
-                    <p><strong>Date & Time:</strong> {selectedAppointment.appointmentTime}</p>
+                    {/* <p><strong>Date & Time:</strong> {selectedAppointment.appointmentTime}</p> */}
                     <p><strong>Status:</strong> 
                       <span className={`status-badge ${selectedAppointment.status.toLowerCase()}`}>
                         {selectedAppointment.status}

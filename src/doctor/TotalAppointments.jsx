@@ -29,16 +29,12 @@ const TotalAppointments = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
+      setError('');
+      
       const userData = JSON.parse(localStorage.getItem('userData'));
       
       if (!userData || !userData.token) {
         setError('Authentication required');
-        navigate('/');
-        return;
-      }
-
-      if (userData.role !== 'doctor') {
-        setError('Only doctors can access this page');
         navigate('/');
         return;
       }
@@ -50,26 +46,32 @@ const TotalAppointments = () => {
         }
       });
 
+      console.log('Full API Response:', response.data);
+      console.log('Appointments received:', response.data.data?.appointments);
+
       if (response.data.success) {
-        if (!response.data.data.appointments || response.data.data.appointments.length === 0) {
-          setError('No appointments found');
-          setAppointments([]);
-        } else {
-          setAppointments(response.data.data.appointments);
-          setError('');
-        }
+        const appointments = response.data.data.appointments || [];
+        
+        // Log each appointment to debug
+        appointments.forEach((apt, index) => {
+          console.log(`Appointment ${index}:`, {
+            id: apt._id,
+            patient: apt.patientName,
+            date: apt.appointmentDate,
+            time: apt.appointmentTime,
+            status: apt.status,
+            ipfsCID: apt.ipfsCID
+          });
+        });
+        console.log(appointments[1].status, 'Updated status check');
+        setAppointments(appointments);
+        setError('');
       } else {
         setError(response.data.message || 'Failed to fetch appointments');
       }
     } catch (error) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('userData');
-        navigate('/');
-      } else if (error.response?.status === 403) {
-        setError('You do not have permission to view appointments');
-      } else {
-        setError(error.response?.data?.message || 'Error loading appointments');
-      }
+      console.error('Error fetching appointments:', error);
+      setError(error.response?.data?.message || 'Error No appointments');
     } finally {
       setLoading(false);
     }
@@ -91,56 +93,65 @@ const TotalAppointments = () => {
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
-      console.log('Starting status update for appointment:', appointmentId, 'new status:', newStatus);
-      
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      console.log('User data:', userData);
-      
-      if (!userData || !userData.token) {
-        setError('Authentication required');
-        return;
-      }
+        setError('');
+        setAppointments(prevAppointments =>
+            prevAppointments.map(appointment =>
+                appointment._id === appointmentId
+                    ? { ...appointment, updating: true }
+                    : appointment
+            )
+        );
 
-      // Find the appointment in the current list
-      const appointment = appointments.find(app => app._id === appointmentId);
-      console.log('Found appointment:', appointment);
-      
-      if (!appointment) {
-        setError('Appointment not found');
-        return;
-      }
-
-      // Get doctor's ID from the appointment
-      const doctorId = appointment.doctorId;
-      console.log('Doctor ID from appointment:', doctorId);
-
-      // Make the API call without checking doctor ID (backend will handle authorization)
-      console.log('Making API call to update status...');
-      const response = await axios.put(
-        `${API_URL}/appointment/update-status`,
-        {
-          appointmentId,
-          status: newStatus.toLowerCase()
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.token) {
+            setError('Authentication required');
+            return;
         }
-      );
 
-      console.log('API Response:', response.data);
+        const response = await axios.put(
+            `${API_URL}/appointment/update-status`,
+            {
+                appointmentId,
+                status: newStatus.toLowerCase()
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${userData.token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
 
-      if (response.data.success) {
-        // Refresh appointments after successful update
-        await fetchAppointments();
-      } else {
-        setError(response.data.message || 'Failed to update status');
-      }
+        if (response.data.success) {
+            // Update the status in the UI immediately
+            setAppointments(prevAppointments =>
+                prevAppointments.map(appointment =>
+                    appointment._id === appointmentId
+                        ? { ...appointment, status: newStatus.toLowerCase(), updating: false }
+                        : appointment
+                )
+            );
+            setError('');
+            fetchAppointments();
+        } else {
+            setError(response.data.message || 'Failed to update status');
+            setAppointments(prevAppointments =>
+                prevAppointments.map(appointment =>
+                    appointment._id === appointmentId
+                        ? { ...appointment, updating: false }
+                        : appointment
+                )
+            );
+        }
     } catch (error) {
-      console.error('Error updating status:', error);
-      setError(error.response?.data?.message || 'Error updating status');
+        setError(error.response?.data?.message || 'Error updating status');
+        setAppointments(prevAppointments =>
+            prevAppointments.map(appointment =>
+                appointment._id === appointmentId
+                    ? { ...appointment, updating: false }
+                    : appointment
+            )
+        );
     }
   };
 
@@ -231,30 +242,38 @@ const TotalAppointments = () => {
                     <tr key={appointment._id}>
                       <td>{appointment.patientName}</td>
                       <td>{appointment.email}</td>
-                      <td>{appointment.dateTime}</td>
+                      <td>
+                        {appointment.appointmentDate && appointment.appointmentTime
+                          ? `${new Date(appointment.appointmentDate).toLocaleDateString()} ${appointment.appointmentTime}`
+                          : 'N/A'}
+                      </td>
                       <td>
                         <select 
-                          value={appointment.status}
+                          value={appointment.status || 'pending'}
                           onChange={(e) => handleStatusChange(appointment._id, e.target.value)}
-                          className={`status-select ${appointment.status.toLowerCase()}`}
+                          className={`status-select ${appointment.status || 'pending'}`}
+                          disabled={appointment.updating}
                         >
-                          <option value="confirm">Confirm</option>
                           <option value="pending">Pending</option>
+                          <option value="confirm">Confirm</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="action-btn delete"
-                            onClick={() => handleDelete(appointment._id)}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        {appointment.updating && <span className="updating-indicator"> ⏳</span>}
+                      </td>
+
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className="action-btn delete"
+                              onClick={() => handleDelete(appointment._id)}
+                            disabled={appointment.updating}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

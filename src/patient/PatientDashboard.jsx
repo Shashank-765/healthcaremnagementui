@@ -399,8 +399,8 @@ const handleToggleApproval = async () =>{
                           {dashboard?.recentAppointments?.map((appointment, idx) => (
                             <tr key={idx}>
                               <td>{appointment.doctorName}</td>
-                              <td>{appointment.date ? new Date(appointment.date).toLocaleDateString('en-US') : '-'}</td>
-                              <td>{appointment.time}</td>
+                              <td>{appointment.appointmentDate ? new Date(appointment.appointmentDate).toLocaleDateString('en-US') : '-'}</td>
+                              <td>{appointment.appointmentTime}</td>
                             </tr>
                           ))}
                         </tbody>

@@ -318,7 +318,7 @@ const ConfirmedAppointments = () => {
                     <th>Doctor Name</th>
                     <th>Specialization</th>
                     <th>Patient Name</th>
-                    <th>Date & Time</th>
+                    {/* <th>Date & Time</th> */}
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -329,7 +329,7 @@ const ConfirmedAppointments = () => {
                       <td>{appointment.doctor.name}</td>
                       <td>{appointment.doctor.specialization}</td>
                       <td>{appointment.patient.name}</td>
-                      <td>{new Date(appointment.appointmentDate).toLocaleDateString()} {appointment.appointmentTime}</td>
+                      {/* <td>{new Date(appointment.appointmentDate).toLocaleDateString()} {appointment.appointmentTime}</td> */}
                       <td>
                         <span className="status-badge confirmed">
                           {appointment.status}
@@ -445,10 +445,10 @@ const ConfirmedAppointments = () => {
                     <span className="detail-label">Patient Name:</span>
                     <span className="detail-value">{selectedAppointment.patient.name}</span>
                   </div>
-                  <div className="detail-row">
+                  {/* <div className="detail-row">
                     <span className="detail-label">Date:</span>
                     <span className="detail-value">{new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</span>
-                  </div>
+                  </div> */}
                   <div className="detail-row">
                     <span className="detail-label">Time:</span>
                     <span className="detail-value">{selectedAppointment.appointmentTime}</span>
