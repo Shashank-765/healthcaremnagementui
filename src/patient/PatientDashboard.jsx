@@ -406,7 +406,7 @@ const handleToggleApproval = async () =>{
                         </tbody>
                       </table>
                       <div className="view-more-container">
-                        <Link to="/all-appointments" className="view-more-link">
+                        <Link to="/patient/all-appointments" className="view-more-link">
                           View All Appointments
                           <i className="fas fa-arrow-right"></i>
                         </Link>

@@ -20,10 +20,12 @@ const InsuranceDashboard = () => {
     const {
         patients,
         loading,
+        isSyncing,
         stats,
         handleAccessRequest,
         handleVerificationToggle,
-        handleViewPatient
+        handleViewPatient,
+        syncMedicalData
     } = useInsurancePatients();
 
     const toggleSidebar = () => {
@@ -320,6 +322,25 @@ const InsuranceDashboard = () => {
                     <div className="view-more-container">
                         <button className="view-more-btn" onClick={handleViewMore}>
                             View More Patients <i className="fas fa-arrow-right"></i>
+                        </button>
+                        
+                        {/* Add sync button for admin or special users */}
+                        <button 
+                            className="sync-btn" 
+                            onClick={syncMedicalData}
+                            disabled={isSyncing}
+                            style={{
+                                marginLeft: '10px',
+                                padding: '8px 16px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: isSyncing ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            {isSyncing ? 'Syncing...' : 'Sync Medical Data'} 
+                            <i className={`fas fa-sync ${isSyncing ? 'fa-spin' : ''}`} style={{ marginLeft: '5px' }}></i>
                         </button>
                     </div>
                 </div>

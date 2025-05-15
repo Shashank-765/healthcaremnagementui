@@ -64,6 +64,11 @@ const HistoryList = () => {
         }
       });
       setPatients(response.data.data);
+      const verifiedMap = {};
+      response.data.data.forEach(patient => {
+        verifiedMap[patient._id] = patient.isVerified;
+      });
+      setVerifiedPatients(verifiedMap);
     } catch (error) {
       console.error('Error fetching patients:', error);
     } finally {
@@ -167,25 +172,51 @@ const HistoryList = () => {
       if (!accessRequests[patient._id]) {
         const createResponse = await axios.post(
           `${API_URL}/insurance/request-access`,
-          {
-            patientName: patient.name
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { patientName: patient.name },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         if (createResponse.data.success) {
+          const newRequestId = createResponse.data.data.requestId;
           setAccessRequests(prev => ({
             ...prev,
-            [patient._id]: createResponse.data.data.requestId
+            [patient._id]: newRequestId
           }));
+
+          console.log('Sending to handle-insurance-request:', {
+            requestId: newRequestId,
+            action: permissions[patient._id] ? 'deny' : 'approve'
+          });
+          const response = await axios.post(
+            `${API_URL}/admin/handle-insurance-request`,
+            {
+              requestId: newRequestId,
+              action: permissions[patient._id] ? 'deny' : 'approve'
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+
+          if (response.data.success) {
+            setPermissions(prev => ({
+              ...prev,
+              [patient._id]: !prev[patient._id]
+            }));
+            await fetchAccessRequests(token);
+          }
+          setLoading(false);
+          return; // Exit so you don't call the API again below
         }
       }
 
-      // Now handle the access request
+      // If requestId already exists, proceed as before
+      console.log('Sending to handle-insurance-request:', {
+        requestId: accessRequests[patient._id],
+        action: permissions[patient._id] ? 'deny' : 'approve'
+      });
       const response = await axios.post(
         `${API_URL}/admin/handle-insurance-request`,
         {
@@ -204,7 +235,6 @@ const HistoryList = () => {
           ...prev,
           [patient._id]: !prev[patient._id]
         }));
-        // Refresh access requests after successful action
         await fetchAccessRequests(token);
       }
     } catch (error) {

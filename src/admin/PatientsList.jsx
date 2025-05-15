@@ -110,7 +110,7 @@ const PatientsList = () => {
   };
 
   const handleLogout = () => {
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const toggleView = () => {
@@ -350,7 +350,7 @@ const PatientsList = () => {
               <img src={logoImage} alt="Hospital Logo" className="nav-logo" />
             </div>
           </div>
-          <div className="navbar-right">
+          {/* <div className="navbar-right">
             <div className="user-menu" onClick={handleUserClick}>
               <i className="fas fa-user-circle user-icon"></i>
               {showUserDropdown && (
@@ -366,6 +366,9 @@ const PatientsList = () => {
                 </div>
               )}
             </div>
+          </div> */}
+           <div className="navbar-right">
+            <i className="fas fa-user-circle user-icon"></i>
           </div>
         </div>
 

@@ -166,7 +166,7 @@ const DoctorDashboard = () => {
       id: 'dashboard',
       icon: 'fas fa-th-large',
       label: 'Dashboard',
-      path: '/doctor-dashboard'
+      path: '/doctor/doctor-dashboard'
     },
     {
       id: 'appointments',
@@ -175,7 +175,7 @@ const DoctorDashboard = () => {
       submenu: [
         {
           label: 'Total Appointments',
-          path: '/total-appointments',
+          path: '/doctor/total-appointments',
           icon: 'fas fa-list-alt'
         }
       ]
@@ -184,7 +184,7 @@ const DoctorDashboard = () => {
       id: 'patient-history',
       icon: 'fas fa-history',
       label: 'Patient History',
-      path: '/doctor-dashboard/patient-history'
+      path: '/doctor/patient-history'
     }
   ];
 
@@ -354,7 +354,7 @@ const DoctorDashboard = () => {
                 </tbody>
               </table>
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px' }}>
-                <button className="view-more-btn" onClick={() => navigate('/total-appointments')}>
+                <button className="view-more-btn" onClick={() => navigate('/doctor/total-appointments')}>
                   View More
                 </button>
               </div>

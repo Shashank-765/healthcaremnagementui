@@ -19,9 +19,6 @@ const Login = () => {
 
     try {
       if (loginType === 'patient') {
-        console.log('Making API call to:', `${API_URL}/patient/patientlogin`);
-        console.log('Sending login data:', { email, password });
-
         const response = await fetch(`${API_URL}/patient/patientlogin`, {
           method: 'POST',
           headers: {
@@ -42,15 +39,12 @@ const Login = () => {
           }));
           localStorage.setItem('token', data.token);
           localStorage.setItem('userRole', 'patient');
-          navigate('/patient-dashboard');
+          navigate('/patient/patient-dashboard');
         } else {
           setError(data.message || 'Login failed');
         }
       } else {
         // Doctor login
-        console.log('Making API call to:', `${API_URL}/doctor/doctorlogin`);
-        console.log('Sending login data:', { email, password });
-
         const response = await axios.post(`${API_URL}/doctor/doctorlogin`, {
           email,
           password
@@ -78,7 +72,7 @@ const Login = () => {
           
           // Navigate to doctor dashboard
           console.log('Navigating to doctor dashboard...');
-          navigate('/doctor-dashboard', { replace: true });
+          navigate('/doctor/doctor-dashboard', { replace: true });
         } else {
           throw new Error(response.data.message || 'Login failed');
         }

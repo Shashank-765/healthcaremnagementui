@@ -182,7 +182,7 @@ const ConfirmedAppointments = () => {
 
   const handleLogout = () => {
     Cookies.remove('token');
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const handleViewAppointment = async (appointment) => {
@@ -449,10 +449,10 @@ const ConfirmedAppointments = () => {
                     <span className="detail-label">Date:</span>
                     <span className="detail-value">{new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</span>
                   </div> */}
-                  <div className="detail-row">
+                  {/* <div className="detail-row">
                     <span className="detail-label">Time:</span>
                     <span className="detail-value">{selectedAppointment.appointmentTime}</span>
-                  </div>
+                  </div> */}
                   <div className="detail-row">
                     <span className="detail-label">Status:</span>
                     <span className="detail-value">

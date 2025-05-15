@@ -58,9 +58,9 @@ const Login = () => {
 
         // Navigate based on role
         if (formData.userType === 'doctor') {
-          navigate('/doctor-dashboard');
+          navigate('/doctor/doctor-dashboard');
         } else {
-          navigate('/patient-dashboard');
+          navigate('/patient/patient-dashboard');
         }
 
         // Clear form data

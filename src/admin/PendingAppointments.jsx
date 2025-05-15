@@ -160,7 +160,7 @@ const PendingAppointments = () => {
 
   const handleLogout = () => {
     Cookies.remove('adminToken');
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const handleStatusChange = async (appointmentId, newStatus) => {

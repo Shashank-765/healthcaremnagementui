@@ -44,20 +44,20 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       
       {/* Patient Routes */}
-      <Route path="/patient-dashboard" element={<PatientDashboard />} />
-      <Route path="/all-appointments" element={<AllAppointments />} />
-      <Route path="/book-appointment" element={<BookAppointment />} />
-      <Route path="/medical-history" element={<MedicalHistory />} />
+      <Route path="/patient/patient-dashboard" element={<PatientDashboard />} />
+      <Route path="/patient/all-appointments" element={<AllAppointments />} />
+      <Route path="/patient/book-appointment" element={<BookAppointment />} />
+      <Route path="/patient/medical-history" element={<MedicalHistory />} />
       <Route path="/profile" element={<Profile />} />
       
       {/* Doctor Routes */}
-      <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-      <Route path="/total-appointments" element={
+      <Route path="/doctor/doctor-dashboard" element={<DoctorDashboard />} />
+      <Route path="/doctor/total-appointments" element={
         <ProtectedRoute allowedRoles={['doctor']}>
           <TotalAppointments />
         </ProtectedRoute>
       } />
-      <Route path="/doctor-dashboard/patient-history" element={
+      <Route path="/doctor/patient-history" element={
         <ProtectedRoute allowedRoles={['doctor']}>
           <PatientHistory />
         </ProtectedRoute>

@@ -29,7 +29,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
       return;
     }
     setActiveItem('dashboard');
-    navigate(role === 'patient' ? '/patient-dashboard' : '/doctor-dashboard');
+    navigate(role === 'patient' ? '/patient/patient-dashboard' : '/doctor/doctor-dashboard');
   };
 
   const handleAppointmentClick = () => {
@@ -44,9 +44,9 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
       return;
     }
     if (role === 'patient') {
-      setActiveItem(path === '/book-appointment' ? 'book-appointment' : 'all-appointments');
+      setActiveItem(path === '/patient/book-appointment' ? 'book-appointment' : 'all-appointments');
       navigate(path);
-    } else if (role === 'doctor' && path === '/total-appointments') {
+    } else if (role === 'doctor' && path === '/doctor/total-appointments') {
       setActiveItem('total-appointments');
       navigate(path);
     }
@@ -59,7 +59,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
       return;
     }
     setActiveItem('medical');
-    navigate('/medical-history');
+    navigate('/patient/medical-history');
   };
 
   const handlePatientHistoryClick = () => {
@@ -69,7 +69,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
       return;
     }
     setActiveItem('patient-history');
-    navigate('/doctor-dashboard/patient-history');
+    navigate('/doctor/patient-history');
   };
 
   useEffect(() => {
@@ -118,14 +118,14 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
                 {userRole === 'patient' ? (
                   <>
                     <li 
-                      onClick={() => handleSubmenuClick('/all-appointments')}
+                      onClick={() => handleSubmenuClick('/patient/all-appointments')}
                       className={`submenu-item ${activeItem === 'all-appointments' ? 'active' : ''}`}
                     >
                       <i className="fas fa-list-alt"></i>
                       All Appointments
                     </li>
                     <li 
-                      onClick={() => handleSubmenuClick('/book-appointment')}
+                      onClick={() => handleSubmenuClick('/patient/book-appointment')}
                       className={`submenu-item ${activeItem === 'book-appointment' ? 'active' : ''}`}
                     >
                       <i className="fas fa-calendar-plus"></i>
@@ -135,7 +135,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, isSubmenuOpen }) => {
                 ) : (
                   <>
                     <li 
-                      onClick={() => handleSubmenuClick('/total-appointments')}
+                      onClick={() => handleSubmenuClick('/doctor/total-appointments')}
                       className="submenu-item"
                     >
                       <i className="fas fa-list-alt"></i>

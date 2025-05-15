@@ -28,7 +28,7 @@ const AllAppointments = () => {
       if (!userData || !userData.token) {
         setError('Authentication data missing. Please log in.');
         setLoading(false);
-        navigate('/patient-dashboard', { replace: true });
+        navigate('/patient/patient-dashboard', { replace: true });
         return;
       }
 
@@ -65,7 +65,7 @@ const AllAppointments = () => {
       
       if (error.response?.status === 401) {
         setError('Session expired. Please log in again.');
-        navigate('/patient-dashboard', { replace: true });
+        navigate('/patient/patient-dashboard', { replace: true });
       } else if (error.response?.status === 404) {
         if (error.response.data?.message?.includes('No appointments found')) {
           setError('You have no appointments yet. Book your first appointment!');
@@ -88,7 +88,7 @@ const AllAppointments = () => {
     } else {
       setError('Please log in to view appointments');
       setLoading(false);
-      navigate('/patient-dashboard', { replace: true });
+      navigate('/patient/patient-dashboard', { replace: true });
     }
   }, [navigate]);
 
@@ -102,7 +102,7 @@ const AllAppointments = () => {
       const userData = JSON.parse(localStorage.getItem('userData'));
       if (!userData || !userData.token) {
         setError('Please log in to delete appointments');
-        navigate('/patient-dashboard', { replace: true });
+        navigate('/patient/patient-dashboard', { replace: true });
         return;
       }
       const response = await axios({
@@ -132,7 +132,7 @@ const AllAppointments = () => {
       
       if (error.response?.status === 401) {
         setError('Session expired. Please try again from dashboard.');
-        navigate('/patient-dashboard', { replace: true });
+        navigate('/patient/patient-dashboard', { replace: true });
       } else if (error.response?.status === 404) {
         setError('Appointment not found or already deleted');
       } else {

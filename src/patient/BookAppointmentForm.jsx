@@ -131,7 +131,7 @@ const BookAppointmentForm = () => {
             });
             // Redirect to appointments list after 2 seconds
             setTimeout(() => {
-                navigate('/all-appointments');
+                navigate('/patient/all-appointments');
             }, 1000);
         } else {
             if (response.data.response?.status === 500) {

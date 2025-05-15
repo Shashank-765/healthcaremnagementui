@@ -176,7 +176,7 @@ const DoctorsList = () => {
 
   const handleLogout = () => {
     Cookies.remove('adminToken');
-    navigate('/');
+    navigate('/admin/login');
   };
 
   const handleViewProfile = (doctor) => {
@@ -465,7 +465,7 @@ const DoctorsList = () => {
               <img src={logoImage} alt="Hospital Logo" className="nav-logo" />
             </div>
           </div>
-          <div className="navbar-right">
+          {/* <div className="navbar-right">
             <div className="user-menu" onClick={handleUserClick}>
               <i className="fas fa-user-circle user-icon"></i>
               {showUserDropdown && (
@@ -481,6 +481,9 @@ const DoctorsList = () => {
                 </div>
               )}
             </div>
+          </div> */}
+           <div className="navbar-right">
+            <i className="fas fa-user-circle user-icon"></i>
           </div>
         </div>
 

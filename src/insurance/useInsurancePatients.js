@@ -7,6 +7,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 export default function useInsurancePatients() {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
     const [stats, setStats] = useState({
         totalPatients: 0,
         insuredPatients: 0,
@@ -31,13 +32,37 @@ export default function useInsurancePatients() {
                 setStats({
                     totalPatients,
                     insuredPatients,
-                    totalMedicalHistory: response.data.totalMedicalHistory
+                    totalMedicalHistory: response.data.totalMedicalHistory || 0
                 });
             }
         } catch (error) {
             console.error('Error fetching patients:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Function to manually trigger syncing medical data
+    // This should be used sparingly, like once a day or by admin request
+    const syncMedicalData = async () => {
+        try {
+            setIsSyncing(true);
+            const token = Cookies.get('token');
+            await axios.post(
+                `${API_URL}/insurance/sync-medical-history`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            // Refresh data after sync
+            await fetchPatients();
+        } catch (error) {
+            console.error('Error syncing medical data:', error);
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -59,10 +84,11 @@ export default function useInsurancePatients() {
             if (response.data.success) {
                 alert('Access request sent successfully');
                 fetchPatients(); // Refresh data after request
+                return response.data;
             }
         } catch (error) {
             console.error('Error sending access request:', error);
-            alert('Error sending access request');
+            throw error; // Rethrow to allow caller to handle specific errors
         }
     };
 
@@ -112,15 +138,19 @@ export default function useInsurancePatients() {
 
     useEffect(() => {
         fetchPatients();
+        // We're not calling syncMedicalData() here to avoid the performance issue
+        // It should be called manually or on a schedule
     }, []);
 
     return {
         patients,
         loading,
+        isSyncing,
         stats,
         handleAccessRequest,
         handleVerificationToggle,
         handleViewPatient,
-        refreshPatients: fetchPatients
+        refreshPatients: fetchPatients,
+        syncMedicalData
     };
 } 

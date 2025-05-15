@@ -22,9 +22,11 @@ const InsurancePatientList = () => {
   const {
     patients,
     loading,
+    isSyncing,
     handleAccessRequest,
     handleVerificationToggle,
-    handleViewPatient
+    handleViewPatient,
+    syncMedicalData
   } = useInsurancePatients();
 
   const handleViewPatientDetails = async (patient) => {
@@ -190,65 +192,87 @@ const InsurancePatientList = () => {
           {loading ? (
             <div className="loading-spinner">Loading...</div>
           ) : (
-            <table className="appointments-table">
-              <thead>
-                <tr>
-                  <th>Patient Name</th>
-                  <th>Phone Number</th>
-                  <th>Email</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPatients.map((patient) => (
-                  <tr key={patient._id}>
-                    <td>{patient.name}</td>
-                    <td>{patient.phone}</td>
-                    <td>{patient.email}</td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className={`action-btn view ${!patient.hasAccess ? 'disabled' : ''}`}
-                          title={patient.hasAccess ? "View Medical History" : "No Access"}
-                          onClick={() => handleViewPatientDetails(patient)}
-                          disabled={!patient.hasAccess}
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                        <button
-                          className={`action-btn request ${patient.hasAccess || patient.requestPending ? 'disabled' : ''}`}
-                          title={patient.hasAccess ? "Already have access" : patient.requestPending ? "Request Already Sent" : "Request Access"}
-                          onClick={() => {
-                            if (patient.hasAccess) return;
-                            if (patient.requestPending) {
-                              setShowRequestSentPopup(true);
-                              return;
-                            }
-                            handleAccessRequestClick(patient);
-                          }}
-                          disabled={patient.hasAccess || patient.requestPending}
-                        >
-                          <i className={`fas fa-hand-paper ${patient.hasAccess ? 'text-success' : ''}`}></i>
-                        </button>
-                        <div className="verification-checkbox">
-                          {patient.isVerified ? (
-                            <img src={correct} width="30px" height="30px" alt="Verified" />
-                          ) : (
-                            <input
-                              type="checkbox"
-                              checked={patient.isVerified}
-                              onChange={() => handleVerificationToggle(patient)}
-                              title="Verify Insurance"
-                              disabled={!patient.hasAccess}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </td>
+            <>
+              <table className="appointments-table">
+                <thead>
+                  <tr>
+                    <th>Patient Name</th>
+                    <th>Phone Number</th>
+                    <th>Email</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredPatients.map((patient) => (
+                    <tr key={patient._id}>
+                      <td>{patient.name}</td>
+                      <td>{patient.phone}</td>
+                      <td>{patient.email}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className={`action-btn view ${!patient.hasAccess ? 'disabled' : ''}`}
+                            title={patient.hasAccess ? "View Medical History" : "No Access"}
+                            onClick={() => handleViewPatientDetails(patient)}
+                            disabled={!patient.hasAccess}
+                          >
+                            <i className="fas fa-eye"></i>
+                          </button>
+                          <button
+                            className={`action-btn request ${patient.hasAccess || patient.requestPending ? 'disabled' : ''}`}
+                            title={patient.hasAccess ? "Already have access" : patient.requestPending ? "Request Already Sent" : "Request Access"}
+                            onClick={() => {
+                              if (patient.hasAccess) return;
+                              if (patient.requestPending) {
+                                setShowRequestSentPopup(true);
+                                return;
+                              }
+                              handleAccessRequestClick(patient);
+                            }}
+                            disabled={patient.hasAccess || patient.requestPending}
+                          >
+                            <i className={`fas fa-hand-paper ${patient.hasAccess ? 'text-success' : ''}`}></i>
+                          </button>
+                          <div className="verification-checkbox">
+                            {patient.isVerified ? (
+                              <img src={correct} width="30px" height="30px" alt="Verified" />
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={patient.isVerified}
+                                onChange={() => handleVerificationToggle(patient)}
+                                title="Verify Insurance"
+                                disabled={!patient.hasAccess}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Add sync button at the bottom */}
+              <div className="sync-container" style={{ marginTop: '20px', textAlign: 'right' }}>
+                <button 
+                  className="sync-btn" 
+                  onClick={syncMedicalData}
+                  disabled={isSyncing}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isSyncing ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSyncing ? 'Syncing...' : 'Sync Medical Data'} 
+                  <i className={`fas fa-sync ${isSyncing ? 'fa-spin' : ''}`} style={{ marginLeft: '5px' }}></i>
+                </button>
+              </div>
+            </>
           )}
         </div>
 
