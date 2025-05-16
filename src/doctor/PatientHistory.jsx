@@ -17,21 +17,15 @@ const PatientHistory = () => {
   const [editMode, setEditMode] = useState(false);
   const [editHistory, setEditHistory] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPatientHistory, setNewPatientHistory] = useState({
-    patientEmail: '',
-    doctorEmail: '',
-    condition: '',
-    notes: ''
-  });
   const [loading, setLoading] = useState(false);
   const [patientHistories, setPatientHistories] = useState([]);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   useEffect(() => {
     console.log('PatientHistory Component Mounted');
     fetchPatientHistories();
-  }, []);
+  }, [searchQuery]);
 
   const fetchPatientHistories = async () => {
     try { 
@@ -80,10 +74,19 @@ const PatientHistory = () => {
       console.log('API Response:', {
         success: response.data.success,
         dataLength: response.data.data?.length,
-        firstRecord: response.data.data?.[0] // Log the first record to see its structure
+        firstRecord: response.data.data?.[0]
       });
+
+      // Filter the data based on search query
+      let filteredData = response.data.data;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredData = response.data.data.filter(history => 
+          history.patientName?.toLowerCase().includes(query)
+        );
+      }
       
-      setPatientHistories(response.data.data);
+      setPatientHistories(filteredData);
     } catch (error) {
       console.log('Error in fetchPatientHistories:', {
         status: error.response?.status,
@@ -283,96 +286,6 @@ const PatientHistory = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleCreateHistory = () => {
-    setShowCreateModal(true);
-  };
-
-  const handleSaveNewHistory = async () => {
-    try {
-      setLoading(true);
-      console.log('Starting handleSaveNewHistory');
-      
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      console.log('UserData in handleSaveNewHistory:', {
-        hasData: !!userData,
-        hasToken: !!userData?.token,
-        role: userData?.role
-      });
-
-      if (!userData || !userData.token) {
-        console.log('No userData or token in handleSaveNewHistory');
-        setError('Authentication required');
-        return;
-      }
-
-      if (userData.role !== 'doctor') {
-        console.log('User is not a doctor in handleSaveNewHistory');
-        setError('Only doctors can access this page');
-        return;
-      }
-
-      if (!newPatientHistory.patientEmail || !newPatientHistory.condition || !newPatientHistory.notes) {
-        console.log('Missing required fields in newPatientHistory');
-        setError('Please fill in all required fields');
-        return;
-      }
-
-      const historyData = {
-        patientEmail: newPatientHistory.patientEmail.trim().toLowerCase(),
-        doctorEmail: userData.email.trim().toLowerCase(),
-        condition: newPatientHistory.condition.trim(),
-        notes: newPatientHistory.notes.trim(),
-        date: new Date()
-      };
-
-      console.log('Sending history data:', historyData);
-
-      const response = await axios.post(
-        `${API_URL}/medical-history/medical-create`, 
-        historyData,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      console.log('Create history response:', {
-        success: response.data.success,
-        message: response.data.message
-      });
-
-      if (response.data.success) {
-        setShowCreateModal(false);
-        fetchPatientHistories();
-        setNewPatientHistory({
-          patientEmail: '',
-          condition: '',
-          notes: ''
-        });
-        alert('Medical history created successfully!');
-      } else {
-        setError(response.data.message);
-      }
-    } catch (error) {
-      console.log('Error in handleSaveNewHistory:', {
-        status: error.response?.status,
-        message: error.message,
-        responseData: error.response?.data
-      });
-      
-      if (error.response?.status === 401) {
-        console.log('Unauthorized error in handleSaveNewHistory');
-        setError('Session expired. Please login again');
-      } else {
-        setError(error.response?.data?.message || 'Failed to create patient history');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const displayedRecords = showAllRecords ? patientHistories : patientHistories.slice(0, 3);
      
 
@@ -398,14 +311,13 @@ const PatientHistory = () => {
             <div className="header-actions">
               <div className="search-boxs">
                 <i className="fas fa-search"></i>
-                <input type="text" placeholder="Search patient history..."/>
+                <input 
+                  type="text" 
+                  placeholder="Search by patient name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              <button 
-                className="create-history-btn"
-                onClick={handleCreateHistory}
-              >
-                <i className="fas fa-plus"></i> Create Patient History
-              </button>
             </div>
           </div>
           <div className="table-responsive">
@@ -629,97 +541,6 @@ const PatientHistory = () => {
                 onClick={handleConfirmDelete}
               >
                 Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Patient History Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal-content view-modal">
-            <div className="modal-header">
-              <h3>Create patient Medical History</h3>
-              <button 
-                className="close-btn"
-                onClick={() => setShowCreateModal(false)}
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="modal-body">
-              <form className="patient-form">
-                <div className="form-group">
-                  <label>Patient Email</label>
-                  <input 
-                    type="email" 
-                    value={newPatientHistory.patientEmail}
-                    onChange={(e) => setNewPatientHistory({
-                      ...newPatientHistory,
-                      patientEmail: e.target.value
-                    })}
-                    placeholder="Enter Patient Email"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Doctor Email</label>
-                  <input 
-                    type="email" 
-                    value={newPatientHistory.doctorEmail}
-                    onChange={(e) => setNewPatientHistory({
-                      ...newPatientHistory,
-                      doctorEmail: e.target.value
-                    })}
-                    placeholder="Enter Doctor Email"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Condition</label>
-                  <input 
-                    type="text" 
-                    value={newPatientHistory.condition}
-                    onChange={(e) => setNewPatientHistory({
-                      ...newPatientHistory,
-                      condition: e.target.value
-                    })}
-                    placeholder="e.g., High Blood Pressure"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Notes</label>
-                  <textarea 
-                    value={newPatientHistory.notes}
-                    onChange={(e) => setNewPatientHistory({
-                      ...newPatientHistory,
-                      notes: e.target.value
-                    })}
-                    placeholder="Enter patient notes"
-                    required
-                    rows={3}
-                  />
-                </div>
-              </form>
-            </div>
-            <div className="modal-footer">
-              <button 
-                className="save-btn"
-                onClick={handleSaveNewHistory}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Medical History'}
-              </button>
-              <button 
-                className="cancel-btn"
-                onClick={() => setShowCreateModal(false)}
-              >
-                Cancel
               </button>
             </div>
           </div>

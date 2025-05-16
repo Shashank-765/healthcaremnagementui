@@ -21,6 +21,12 @@ const TotalAppointments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPatientHistory, setNewPatientHistory] = useState({
+    patientEmail: '',
+    condition: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchAppointments();
@@ -186,6 +192,103 @@ const TotalAppointments = () => {
     }
   };
 
+  const handleCreateHistory = (appointment) => {
+    setSelectedAppointment(appointment);
+    setNewPatientHistory({
+      patientEmail: appointment.email,
+      condition: '',
+      notes: ''
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleSaveNewHistory = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting handleSaveNewHistory');
+      
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      console.log('UserData in handleSaveNewHistory:', {
+        hasData: !!userData,
+        hasToken: !!userData?.token,
+        role: userData?.role
+      });
+
+      if (!userData || !userData.token) {
+        console.log('No userData or token in handleSaveNewHistory');
+        setError('Authentication required');
+        return;
+      }
+
+      if (userData.role !== 'doctor') {
+        console.log('User is not a doctor in handleSaveNewHistory');
+        setError('Only doctors can access this page');
+        return;
+      }
+
+      if (!newPatientHistory.patientEmail || !newPatientHistory.condition || !newPatientHistory.notes) {
+        console.log('Missing required fields in newPatientHistory');
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      const historyData = {
+        patientEmail: newPatientHistory.patientEmail.trim().toLowerCase(),
+        doctorEmail: userData.email.trim().toLowerCase(),
+        condition: newPatientHistory.condition.trim(),
+        notes: newPatientHistory.notes.trim(),
+        date: new Date()
+      };
+
+      console.log('Sending history data:', historyData);
+
+      const response = await axios.post(
+        `${API_URL}/medical-history/medical-create`, 
+        historyData,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Create history response:', {
+        success: response.data.success,
+        message: response.data.message
+      });
+
+      if (response.data.success) {
+        setShowCreateModal(false);
+        setNewPatientHistory({
+          patientEmail: '',
+          condition: '',
+          notes: ''
+        });
+        alert('Medical history created successfully!');
+        // Redirect to patient history page
+        navigate('/doctor/patient-history');
+      } else {
+        setError(response.data.message);
+      }
+    } catch (error) {
+      console.log('Error in handleSaveNewHistory:', {
+        status: error.response?.status,
+        message: error.message,
+        responseData: error.response?.data
+      });
+      
+      if (error.response?.status === 401) {
+        console.log('Unauthorized error in handleSaveNewHistory');
+        setError('Session expired. Please login again');
+      } else {
+        setError(error.response?.data?.message || 'Failed to create patient history');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
      <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
@@ -264,6 +367,12 @@ const TotalAppointments = () => {
                       <td>
                         <div className="action-buttons">
                           <button 
+                            className="action-btn create"
+                            onClick={() => handleCreateHistory(appointment)}
+                            title="Create Medical History"style={{color:"green" , fontSize: "24px"}}>
+                            <i className="fas fa-file-medical"></i>
+                          </button>
+                          <button 
                             className="action-btn delete"
                               onClick={() => handleDelete(appointment._id)}
                             disabled={appointment.updating}
@@ -295,6 +404,84 @@ const TotalAppointments = () => {
           )}
         </div>
       </div>
+
+      {/* Create Patient History Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="modal-content view-modal">
+            <div className="modal-header">
+              <h3>Create Patient Medical History</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <form className="patient-form">
+                <div className="form-group">
+                  <label>Patient Email</label>
+                  <input 
+                    type="email" 
+                    value={newPatientHistory.patientEmail}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      patientEmail: e.target.value
+                    })}
+                    placeholder="Enter Patient Email"
+                    required
+                    disabled
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Condition</label>
+                  <input 
+                    type="text" 
+                    value={newPatientHistory.condition}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      condition: e.target.value
+                    })}
+                    placeholder="e.g., High Blood Pressure"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea 
+                    value={newPatientHistory.notes}
+                    onChange={(e) => setNewPatientHistory({
+                      ...newPatientHistory,
+                      notes: e.target.value
+                    })}
+                    placeholder="Enter patient notes"
+                    required
+                    rows={3}
+                  />
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="save-btn"
+                onClick={handleSaveNewHistory}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Medical History'}
+              </button>
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

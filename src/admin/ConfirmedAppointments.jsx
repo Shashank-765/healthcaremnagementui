@@ -30,19 +30,15 @@ const ConfirmedAppointments = () => {
     const fetchConfirmedAppointments = async () => {
       try {
         setLoading(true);
+        setError(''); // Clear any previous errors
+        
         const userData = JSON.parse(localStorage.getItem('userData'));
         const token = userData?.token;   
-        if (!token) {
-          const userData = JSON.parse(localStorage.getItem('userData'));
-          token = userData?.token;
-        }
-
+        
         if (!token) {
           navigate('/admin/login');
           return;
         }
-
-        console.log('Token being sent:', token);
 
         const queryParams = new URLSearchParams();
         if (searchQuery) {
@@ -59,8 +55,6 @@ const ConfirmedAppointments = () => {
             }
           }
         );
-
-        console.log('API Response:', response.data);
 
         if (response.data.success) {
           const formattedAppointments = response.data.data.map(appointment => ({
@@ -83,8 +77,18 @@ const ConfirmedAppointments = () => {
           setError(response.data.message || 'Failed to fetch appointments');
         }
       } catch (error) {
-        console.error('Full error object:', error);
-        setError(error.response?.data?.message || 'Failed to fetch appointments');
+        console.error('Error fetching appointments:', error);
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          setError(error.response.data.message || 'Failed to fetch appointments');
+        } else if (error.request) {
+          // The request was made but no response was received
+          setError('No response from server. Please check your connection.');
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          setError('Error setting up the request. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -324,7 +328,12 @@ const ConfirmedAppointments = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {confirmedAppointments.map(appointment => (
+                  {confirmedAppointments
+                    .filter(appointment =>
+                      appointment.doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      appointment.patient.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map(appointment => (
                     <tr key={appointment._id}>
                       <td>{appointment.doctor.name}</td>
                       <td>{appointment.doctor.specialization}</td>

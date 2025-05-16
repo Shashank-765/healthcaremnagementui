@@ -363,6 +363,7 @@ const handleToggleApproval = async () =>{
                     checked={isApproved}
                     onChange={handleToggleApproval}
                     disabled={approving || hasBeenClicked}
+                    readOnly
                   />
                   <span className="slider round"></span>
                 </label>

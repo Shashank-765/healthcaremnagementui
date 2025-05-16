@@ -508,18 +508,18 @@ const PendingAppointments = () => {
                     </select>
                   </div>
                   <div className="form-actions">
-                    <button 
+                    {/* <button 
                       className="cancel-btn"
                       onClick={() => setShowEditModal(false)}
                     >
                       Cancel
-                    </button>
-                    <button 
+                    </button> */}
+                    {/* <button 
                       className="save-btn"
                       onClick={() => handleStatusChange(selectedAppointment._id, selectedAppointment.status)}
                     >
                       Save Changes
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>

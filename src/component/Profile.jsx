@@ -1,26 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../patient/PatientDashboard.css';
 import Sidebar from '../component/Sidebar';
 import Navbar from '../component/Navbar';
+import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const Profile = () => {
   const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Dummy data for profile
+  // Profile data state
   const [profileData, setProfileData] = useState({
-    name: "John Doe",
-    age: 35,
-    bloodGroup: "O+",
-    contact: "+1234567890",
-    email: "john.doe@example.com",
-    address: "123 Healthcare St, Medical City, MC 12345"
+    fullName: "",
+    age: "",
+    contact: "",
+    email: "",
+    bloodGroup: "",
+    specialization: ""
   });
 
+  // Fetch profile data on component mount
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      
+      if (!userData || !userData.token) {
+        setError("No authentication token found. Please login again.");
+        navigate('/login');
+        return;
+      }
+
+      console.log('Fetching profile data...');
+      console.log('API URL:', `${API_URL}/patient/profile-view`);
+      
+      const response = await axios.get(`${API_URL}/patient/profile-view`, {
+        headers: {
+          Authorization: `Bearer ${userData.token}`
+        }
+      });
+
+      console.log('Profile API Response:', response.data);
+
+      if (response.data.success) {
+        setProfileData(response.data.data);
+      } else {
+        setError(response.data.message || "Failed to fetch profile data");
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+
+      if (err.response?.status === 401) {
+        setError("Session expired. Please login again.");
+        localStorage.removeItem('userData');
+        navigate('/login');
+      } else if (err.response?.status === 404) {
+        setError("Profile not found. Please contact support.");
+      } else {
+        setError(err.response?.data?.message || "Error fetching profile data. Please try again later.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
-    navigate('/');
+    localStorage.removeItem('userData');
+    navigate('/login');
   };
 
   const handleFileUpload = (e) => {
@@ -34,9 +93,22 @@ const Profile = () => {
     setIsEditing(true);
   };
 
-  const handleSaveClick = () => {
-    setIsEditing(false);
-    // Here you would typically save the changes to your backend
+  const handleSaveClick = async () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData'))
+      // TODO: Implement update profile API call here
+      // const response = await axios.put(`${API_URL}/patient/updateprofile`, profileData, {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`
+      //   }
+      // });
+      
+      setIsEditing(false);
+      // Refresh profile data after update
+      await fetchProfileData();
+    } catch (err) {
+      setError(err.response?.data?.message || "Error updating profile");
+    }
   };
 
   const handleInputChange = (e) => {
@@ -47,13 +119,35 @@ const Profile = () => {
     }));
   };
 
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="main-content">
+          <Navbar />
+          <div className="loading">Loading profile data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="main-content">
+          <Navbar />
+          <div className="error-message">{error}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       <Sidebar />
-      {/* Main Content */}
       <div className="main-content">
         <Navbar />
-        {/* Profile Card */}
         <div className="dashboard-card">
           <div className="card-header">
             <h3>
@@ -101,8 +195,8 @@ const Profile = () => {
                     <div className="input-group">
                       <input 
                         type="text" 
-                        name="name"
-                        value={profileData.name} 
+                        name="fullName"
+                        value={profileData.fullName} 
                         onChange={handleInputChange}
                         disabled={!isEditing}
                       />
@@ -132,23 +226,46 @@ const Profile = () => {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group col-md-6">
-                    <label>Blood Group</label>
-                    <div className="input-group">
-                      <input 
-                        type="text" 
-                        name="bloodGroup"
-                        value={profileData.bloodGroup} 
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
-                      />
-                      {!isEditing && (
-                        <button className="edit-field-btn" onClick={handleEditClick}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
+                  {profileData.bloodGroup && (
+                    <div className="form-group col-md-6">
+                      <label>Blood Group</label>
+                      <div className="input-group">
+                        <input 
+                          type="text" 
+                          name="bloodGroup"
+                          value={profileData.bloodGroup} 
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                        />
+                        {!isEditing && (
+                          <button className="edit-field-btn" onClick={handleEditClick}>
+                            <i className="fas fa-edit"></i>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {profileData.specialization && (
+                    <div className="form-group col-md-6">
+                      <label>Specialization</label>
+                      <div className="input-group">
+                        <input 
+                          type="text" 
+                          name="specialization"
+                          value={profileData.specialization} 
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                        />
+                        {!isEditing && (
+                          <button className="edit-field-btn" onClick={handleEditClick}>
+                            <i className="fas fa-edit"></i>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="form-row">
                   <div className="form-group col-md-6">
                     <label>Contact</label>
                     <div className="input-group">
@@ -166,9 +283,7 @@ const Profile = () => {
                       )}
                     </div>
                   </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group col-md-12">
+                  <div className="form-group col-md-6">
                     <label>Email</label>
                     <div className="input-group">
                       <input 
@@ -184,22 +299,6 @@ const Profile = () => {
                         </button>
                       )}
                     </div>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Address</label>
-                  <div className="input-group">
-                    <textarea
-                      value={profileData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      disabled={!isEditing}
-                      placeholder="Enter your address"
-                    />
-                    {isEditing && (
-                      <button className="edit-field-btn" type="button">
-                        <i className="fas fa-edit"></i>
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

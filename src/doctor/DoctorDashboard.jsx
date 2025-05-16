@@ -327,7 +327,7 @@ const DoctorDashboard = () => {
                 <thead>
                   <tr>
                     <th>Patient Name</th>
-                    <th>Time</th>
+                    <th>Date & Time</th>
                     <th>Status</th>
                   </tr>
                 </thead>
