@@ -120,13 +120,6 @@ const InsuranceLogin = () => {
               className="login-input"
             />
           </div>
-          <div className="remember-forgot">
-            <label className="remember-me">
-              <input type="checkbox" />
-              <span>Remember Me</span>
-            </label>
-            <a href="#" className="forgot-password">Forgot Password?</a>
-          </div>
           <button 
             type="submit" 
             className="login-button"
