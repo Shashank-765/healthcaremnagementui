@@ -25,10 +25,35 @@ export default function useInsurancePatients() {
             });
             
             if (response.data.success) {
-                setPatients(response.data.data);
-                // Calculate stats
-                const totalPatients = response.data.data.length;
-                const insuredPatients = response.data.data.filter(patient => patient.isVerified).length;
+                console.log('Fetched patients data:', response.data.data);
+                
+                // Process and update patients data
+                const updatedPatients = response.data.data.map(patient => {
+                    // Ensure isVerified is properly set from server data
+                    const verifiedPatient = {
+                        ...patient,
+                        isVerified: Boolean(patient.isVerified)
+                    };
+                    console.log('Processed patient:', verifiedPatient.name, 'isVerified:', verifiedPatient.isVerified);
+                    return verifiedPatient;
+                });
+                
+                // Don't update state if it would revert a verified patient
+                setPatients(prevPatients => {
+                    const newPatients = updatedPatients.map(newPatient => {
+                        const prevPatient = prevPatients.find(p => p._id === newPatient._id || p.name === newPatient.name);
+                        if (prevPatient && prevPatient.isVerified) {
+                            console.log('Maintaining verified state for:', newPatient.name);
+                            return { ...newPatient, isVerified: true };
+                        }
+                        return newPatient;
+                    });
+                    return newPatients;
+                });
+                
+                // Calculate stats based on verified patients
+                const totalPatients = updatedPatients.length;
+                const insuredPatients = updatedPatients.filter(patient => patient.isVerified).length;
                 setStats({
                     totalPatients,
                     insuredPatients,
@@ -105,7 +130,26 @@ export default function useInsurancePatients() {
             );
             
             if (response.data.success) {
-                fetchPatients(); // Refresh data after verification
+                console.log('Server response:', response.data);
+                
+                // Update local state immediately with the verified patient data
+                setPatients(prevPatients => 
+                    prevPatients.map(p => {
+                        if (p._id === patient._id || p.name === patient.name) {
+                            console.log('Updating patient:', p.name, 'to verified state');
+                            return { ...p, isVerified: true };
+                        }
+                        return p;
+                    })
+                );
+
+                // Update stats
+                setStats(prevStats => ({
+                    ...prevStats,
+                    insuredPatients: prevStats.insuredPatients + 1
+                }));
+                
+                console.log('Verification successful, state updated');
             }
         } catch (error) {
             console.error('Error updating verification:', error);

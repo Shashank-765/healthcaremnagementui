@@ -53,10 +53,9 @@ const TotalAppointments = () => {
       });
 
       console.log('Full API Response:', response.data);
-      console.log('Appointments received:', response.data.data?.appointments);
 
       if (response.data.success) {
-        const appointments = response.data.data.appointments || [];
+        const appointments = response.data.data?.appointments || [];
         
         // Log each appointment to debug
         appointments.forEach((apt, index) => {
@@ -65,11 +64,15 @@ const TotalAppointments = () => {
             patient: apt.patientName,
             date: apt.appointmentDate,
             time: apt.appointmentTime,
-            status: apt.status,
-            ipfsCID: apt.ipfsCID
+            status: apt.status
           });
         });
-        console.log(appointments[1].status, 'Updated status check');
+
+        // Only log status if appointments array has items
+        if (appointments.length > 0) {
+          console.log('First appointment status:', appointments[0].status);
+        }
+
         setAppointments(appointments);
         setError('');
       } else {
@@ -77,7 +80,8 @@ const TotalAppointments = () => {
       }
     } catch (error) {
       console.error('Error fetching appointments:', error);
-      setError(error.response?.data?.message || 'Error No appointments');
+      setError(error.response?.data?.message || 'Error fetching appointments');
+      setAppointments([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

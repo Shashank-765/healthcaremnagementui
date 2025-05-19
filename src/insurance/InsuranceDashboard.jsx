@@ -72,6 +72,17 @@ const InsuranceDashboard = () => {
         navigate('/insurance/login');
     };
 
+    const handleVerifyClick = async (patient) => {
+        console.log('Verifying patient:', patient);
+        try {
+            await handleVerificationToggle(patient);
+            console.log('Verification successful for patient:', patient.name);
+        } catch (error) {
+            console.error('Error during verification:', error);
+            alert('Failed to verify patient. Please try again.');
+        }
+    };
+
     return (
         <div className="dashboard-container">
             {/* Sidebar */}
@@ -306,12 +317,23 @@ const InsuranceDashboard = () => {
                                                 <i className="fas fa-hand-paper"></i>
                                             </button>
                                             <div className="verification-checkbox">
-                                                {patient.isVerified ? <img src={correct} width="30px" height="30px"/> :<input
-                                                    type="checkbox"
-                                                    checked={patient.isVerified}
-                                                    onChange={() => handleVerificationToggle(patient)}
-                                                    title="Verify Insurance"
-                                                />}
+                                                {patient.isVerified ? (
+                                                    <img 
+                                                        src={correct} 
+                                                        width="30px" 
+                                                        height="30px" 
+                                                        alt="Verified"
+                                                        style={{ pointerEvents: 'none' }}
+                                                    />
+                                                ) : (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={patient.isVerified}
+                                                        onChange={() => handleVerifyClick(patient)}
+                                                        title="Verify Insurance"
+                                                        disabled={patient.isVerified}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
                                     </td>
