@@ -150,9 +150,12 @@ export default function useInsurancePatients() {
                 }));
                 
                 console.log('Verification successful, state updated');
+                return patient; // Return the original patient object
             }
+            throw new Error('Verification failed: ' + (response.data.message || 'Unknown error'));
         } catch (error) {
             console.error('Error updating verification:', error);
+            throw error; // Rethrow to allow caller to handle the error
         }
     };
 
@@ -188,6 +191,7 @@ export default function useInsurancePatients() {
 
     return {
         patients,
+        setPatients,
         loading,
         isSyncing,
         stats,

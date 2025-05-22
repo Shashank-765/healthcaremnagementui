@@ -19,6 +19,7 @@ const InsuranceDashboard = () => {
     // Use the custom hook
     const {
         patients,
+        setPatients,
         loading,
         isSyncing,
         stats,
@@ -73,13 +74,27 @@ const InsuranceDashboard = () => {
     };
 
     const handleVerifyClick = async (patient) => {
-        console.log('Verifying patient:', patient);
         try {
             await handleVerificationToggle(patient);
-            console.log('Verification successful for patient:', patient.name);
+            // Update the patients list with the verified patient
+            setPatients(prevPatients => 
+                prevPatients.map(p => 
+                    p._id === patient._id || p.name === patient.name 
+                        ? { ...p, isVerified: true } 
+                        : p
+                )
+            );
         } catch (error) {
             console.error('Error during verification:', error);
             alert('Failed to verify patient. Please try again.');
+            // Revert the checkbox state
+            setPatients(prevPatients => 
+                prevPatients.map(p => 
+                    p._id === patient._id || p.name === patient.name 
+                        ? { ...p, isVerified: false } 
+                        : p
+                )
+            );
         }
     };
 
@@ -303,16 +318,25 @@ const InsuranceDashboard = () => {
                                         <div className="table-actions">
                                             <button 
                                                 className="action-btn view" 
-                                                title="View Details"
+                                                title={patient.hasAccess ? "View Details" : "Request access first"}
                                                 onClick={() => handleViewAppointment(patient)}
+                                                disabled={!patient.hasAccess}
+                                                style={{ 
+                                                    cursor: patient.hasAccess ? 'pointer' : 'not-allowed',
+                                                    opacity: patient.hasAccess ? 1 : 0.5
+                                                }}
                                             >
                                                 <i className="fas fa-eye"></i>
                                             </button>
                                             <button
                                                 className="action-btn request"
-                                                title="Request Access"
+                                                title={patient.hasAccess ? "Access Granted" : "Request Access"}
                                                 onClick={() => handleAccessRequest(patient)}
                                                 disabled={patient.hasAccess}
+                                                style={{ 
+                                                    cursor: patient.hasAccess ? 'not-allowed' : 'pointer',
+                                                    opacity: patient.hasAccess ? 0.5 : 1
+                                                }}
                                             >
                                                 <i className="fas fa-hand-paper"></i>
                                             </button>
@@ -330,8 +354,12 @@ const InsuranceDashboard = () => {
                                                         type="checkbox"
                                                         checked={patient.isVerified}
                                                         onChange={() => handleVerifyClick(patient)}
-                                                        title="Verify Insurance"
-                                                        disabled={patient.isVerified}
+                                                        title={patient.hasAccess ? "Verify Insurance" : "Request access first"}
+                                                        disabled={!patient.hasAccess || patient.isVerified}
+                                                        style={{ 
+                                                            cursor: patient.hasAccess ? 'pointer' : 'not-allowed',
+                                                            opacity: patient.hasAccess ? 1 : 0.5
+                                                        }}
                                                     />
                                                 )}
                                             </div>
