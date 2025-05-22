@@ -20,10 +20,9 @@ const MedicalHistory = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showCreatePopup, setShowCreatePopup] = useState(false);
-  const [doctors, setDoctors] = useState([]);
   const [newHistory, setNewHistory] = useState({
     fullName: '',
-    doctorId: '',
+    // doctorId: '',
     condition: '',
     date: '',
     notes: ''
@@ -35,8 +34,19 @@ const MedicalHistory = () => {
       navigate('/patient-dashboard');
       return;
     }
+
+    if (userData?.role === 'patient') {
+      console.log('Setting patient info:', userData);
+      setNewHistory(prev => ({
+        ...prev,
+        email: userData.email,
+        fullName: userData.email.split('@')[0]
+      }));
+    } else {
+      navigate('/patient-dashboard');
+    }
+
     fetchMedicalHistory();
-    fetchDoctors();
   }, [navigate]);
 
   const fetchMedicalHistory = async () => {
@@ -55,7 +65,9 @@ const MedicalHistory = () => {
       });
 
       if (response.data.success) {
-        setMedicalHistory(response.data.data);
+        const historyData = Array.isArray(response.data.data) ? response.data.data : [response.data.data];
+        console.log('Setting medical history with data:', historyData);
+        setMedicalHistory(historyData);
       } else {
         setError(response.data.message || 'Failed to fetch medical history');
       }
@@ -69,27 +81,6 @@ const MedicalHistory = () => {
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchDoctors = async () => {
-    try {
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      const response = await axios.get(`${API_URL}/appointment/doctors/all`, {
-        headers: {
-          Authorization: `Bearer ${userData.token}`
-        }
-      });
-      if (response.data.success) {
-        const doctorsList = Array.isArray(response.data.data.doctors) ? response.data.data.doctors : [];
-        setDoctors(doctorsList);
-      } else {
-        console.error('Failed to fetch doctors:', response.data.message);
-        setDoctors([]);
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      setDoctors([]);
     }
   };
 
@@ -125,7 +116,7 @@ const MedicalHistory = () => {
           </div>
           <div className="modal-body">
             <div className="record-detail">
-              <strong>Doctor Name:</strong> {record.doctorId?.fullName || record.doctorName || 'N/A'}
+              <strong>Doctor Name:</strong> {record.doctorId?.fullName || record.doctorName || 'Self'}
             </div>
             <div className="record-detail">
               <strong>Condition:</strong> {record.condition || 'N/A'}
@@ -141,6 +132,10 @@ const MedicalHistory = () => {
       </div>
     );
   };
+
+  useEffect(() => {
+    console.log('Medical History State:', medicalHistory);
+  }, [medicalHistory]);
 
   return (
     <div className="dashboard-container">
@@ -214,8 +209,8 @@ const MedicalHistory = () => {
                   </thead>
                   <tbody>
                     {displayedHistory.map((record, index) => (
-                      <tr key={index}>
-                        <td>{record.doctorId?.fullName || record.doctorName}</td>
+                      <tr key={record._id || index}>
+                        <td>{record.doctorId?.fullName || record.doctorName || 'Self'}</td>
                         <td>{record.condition || 'N/A'}</td>
                         <td>{record.notes || 'N/A'}</td>
                         <td>{new Date(record.date).toLocaleDateString() || 'N/A'}</td>
@@ -257,46 +252,51 @@ const MedicalHistory = () => {
               onSubmit={async (e) => {
                 e.preventDefault();
                 const userData = JSON.parse(localStorage.getItem('userData'));
+                
                 try {
-                  // Get the selected doctor's name
-                  const selectedDoctor = doctors.find(doc => doc._id === newHistory.doctorId);
-                  
-                  console.log('Sending request with data:', {
-                    fullName: newHistory.fullName,
-                    doctorName: selectedDoctor ? selectedDoctor.fullName : 'Self',
-                    condition: newHistory.condition,
-                    notes: newHistory.notes,
-                    date: newHistory.date
-                  });
+                    const requestData = {
+                        email: userData.email,
+                        fullName: userData.email.split('@')[0],
+                        doctorName: 'Self',
+                        condition: newHistory.condition,
+                        notes: newHistory.notes,
+                        date: newHistory.date
+                    };
 
-                  const response = await axios.post(
-                    `${API_URL}/medical-history/self-history`,
-                    {
-                      fullName: newHistory.fullName,
-                      doctorName: selectedDoctor ? selectedDoctor.fullName : 'Self',
-                      condition: newHistory.condition,
-                      notes: newHistory.notes,
-                      date: newHistory.date
-                    },
-                    {
-                      headers: {
-                        Authorization: `Bearer ${userData.token}`
-                      }
+                    console.log('Sending request with data:', requestData);
+
+                    const response = await axios.post(
+                        `${API_URL}/medical-history/self-history`,
+                        requestData,
+                        {
+                            headers: {
+                                Authorization: `Bearer ${userData.token}`
+                            }
+                        }
+                    );
+
+                    console.log('Server response:', response.data);
+                    
+                    if (response.data.success) {
+                        setMedicalHistory(prevHistory => {
+                            const newHistory = [...prevHistory, response.data.data];
+                            console.log('Updated history state:', newHistory);
+                            return newHistory;
+                        });
+                        
+                        setShowCreatePopup(false);
+                        setNewHistory({ fullName: '', condition: '', date: '', notes: '' });
+                        
+                        alert('Medical history created successfully!');
                     }
-                  );
-
-                  console.log('Server response:', response.data);
-                  fetchMedicalHistory();
-                  setShowCreatePopup(false);
-                  setNewHistory({ fullName: '', doctorId: '', condition: '', date: '', notes: '' });
                 } catch (err) {
-                  console.error('Error creating medical history:', {
-                    message: err.message,
-                    response: err.response?.data,
-                    status: err.response?.status,
-                    fullError: err
-                  });
-                  alert(err.response?.data?.message || 'Failed to create medical history. Please check console for details.');
+                    console.error('Error creating medical history:', {
+                        message: err.message,
+                        response: err.response?.data,
+                        status: err.response?.status,
+                        fullError: err
+                    });
+                    alert(err.response?.data?.message || 'Failed to create medical history. Please check console for details.');
                 }
               }}
             >
@@ -305,24 +305,8 @@ const MedicalHistory = () => {
                 <input
                   type="text"
                   value={newHistory.fullName}
-                  onChange={e => setNewHistory({ ...newHistory, fullName: e.target.value })}
-                  required
+                  disabled
                 />
-              </div>
-              <div className="form-group">
-                <label>Doctor:</label>
-                <select
-                  value={newHistory.doctorId}
-                  onChange={e => setNewHistory({ ...newHistory, doctorId: e.target.value })}
-                  required
-                >
-                  <option value="">Select a doctor</option>
-                  {doctors.map(doctor => (
-                    <option key={doctor._id} value={doctor._id}>
-                      Dr. {doctor.fullName} - {doctor.specialization}
-                    </option>
-                  ))}
-                </select>
               </div>
               <div className="form-group">
                 <label>Condition:</label>

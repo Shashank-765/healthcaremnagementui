@@ -25,6 +25,7 @@ import InsuranceLogin from './insurance/InsuranceLogin';
 import InsuranceDashboard from './insurance/InsuranceDashboard';
 import InsurancePatientList from './insurance/PatientList';
 import HistoryList from './admin/HistoryList';
+// import Notifications from './component/notifications';
 // Protected Route component
 const ProtectedRoute = ({ children, allowedRoles = ['doctor'] }) => {
   const userData = JSON.parse(localStorage.getItem('userData'));
@@ -82,6 +83,9 @@ function App() {
       <Route path="/insurance/login" element={<InsuranceLogin />} />
       <Route path ="/insurance/dashboard" element={<InsuranceDashboard />} />
       <Route path ="/insurance/patient-list" element={<InsurancePatientList />} />
+
+      {/* Notification Routes */}
+      {/* <Route path="/notifications" element={<Notifications />} /> */}
     </Routes>
   );
 }

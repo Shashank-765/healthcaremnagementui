@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../doctor/DoctorDashboard.css';
+import '../component/Navbar.css';
 import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
 import logoImage from '../image/logo.png';
@@ -36,7 +37,7 @@ const DoctorDashboard = () => {
       const parsedUserData = userData ? JSON.parse(userData) : null;
       
       if (!parsedUserData || !parsedUserData.token || parsedUserData.role !== 'doctor') {
-        setError('Please login as a doctor to view dashboard');
+        setError('jwt token is expired please login again as a doctor');
         return;
       }
 
@@ -55,7 +56,7 @@ const DoctorDashboard = () => {
         const doctorEmail = userData.email;
         
         if (!token || userData.role !== 'doctor') {
-          setError('Please login as a doctor to view dashboard');
+          setError('jwt token is expired please login again as a doctor');
           setLoading(false);
           return;
         }
@@ -120,29 +121,24 @@ const DoctorDashboard = () => {
   }, []);
 
   const handleToggleApproval = async () => {
-    if (!hasBeenClicked) {
-      setIsApproved(prev => !prev);
-      setHasBeenClicked(true); 
-      setApproving(true);
-      setApprovalError(null);
-    }
+    if (isApproved) return; // Do nothing if already approved
+
+    setIsApproved(true);
+    setHasBeenClicked(true); 
+    setApproving(true);
+    setApprovalError(null);
+
     try {
       // Toggling ON: call dashboard API to auto-approve (backend will add to adddoctorModel if needed)
-      if (!isApproved) {
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        const token = userData.token;
-        const doctorEmail = userData.email;
-        await axios.get(`${API_URL}/doctor/dashboard/${doctorEmail}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        setIsApproved(true);
-      } else {
-        // Toggling OFF: (optional) - you may want to remove from adddoctorModel, but for now just set state
-        setIsApproved(false);
-      }
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const token = userData.token;
+      const doctorEmail = userData.email;
+      await axios.get(`${API_URL}/doctor/dashboard/${doctorEmail}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
     } catch (err) {
       setApprovalError('Approval failed. Please try again.');
     } finally {
@@ -201,16 +197,6 @@ const DoctorDashboard = () => {
     navigate(path);
     setExpandedItem(null);
   };
-
-  const weeklyStats = [
-    { day: 'Mon', value: 12 },
-    { day: 'Tue', value: 19 },
-    { day: 'Wed', value: 15 },
-    { day: 'Thu', value: 22 },
-    { day: 'Fri', value: 18 },
-    { day: 'Sat', value: 14 },
-    { day: 'Sun', value: 10 }
-  ];
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -304,7 +290,7 @@ const DoctorDashboard = () => {
                     type="checkbox"
                     checked={isApproved}
                     onChange={handleToggleApproval}
-                    disabled={approving || hasBeenClicked}
+                    disabled={isApproved || approving || hasBeenClicked}
                   />
                   <span className="slider round"></span>
                 </label>
