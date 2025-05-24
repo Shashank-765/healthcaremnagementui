@@ -28,6 +28,11 @@ const styles = {
     color: '#dc3545',
     fontSize: '1.2rem',
     transition: 'all 0.3s ease',
+  },
+  imageModal: {
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    overflow: 'auto'
   }
 };
 
@@ -43,6 +48,8 @@ const HistoryList = () => {
   const [permissions, setPermissions] = useState({});
   const [accessRequests, setAccessRequests] = useState({});
   const [verifiedPatients, setVerifiedPatients] = useState({});
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('userData'));
@@ -245,6 +252,14 @@ const HistoryList = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewImage = (fileInfo) => {
+    if (fileInfo) {
+      console.log(fileInfo);  
+      setSelectedImage(fileInfo);
+      setShowImageModal(true);
     }
   };
 
@@ -455,6 +470,7 @@ const HistoryList = () => {
                         <th>Doctor</th>
                         <th>Condition</th>
                         <th>Notes</th>
+                        <th>Document</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -464,12 +480,56 @@ const HistoryList = () => {
                           <td>{record.doctorName}</td>
                           <td>{record.condition}</td>
                           <td>{record.notes}</td>
+                          <td>
+                            {record?.fileInfo ? (
+                              <button
+                                className="action-btn view"
+                                onClick={() => handleViewImage({ ...record.fileInfo, _id: record._id })}
+                                title="View Document"
+                              >
+                                <i className="fas fa-eye"></i>
+                              </button>
+                            ) : (
+                              "No document"
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
                   <p>No medical history available</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image View Modal */}
+        {showImageModal && selectedImage && (
+          <div className="modal-overlay">
+            <div className="modal-content image-modal">
+              <div className="modal-header">
+                <h3>Document: {selectedImage.originalName}</h3>
+                <button className="close-btn" onClick={() => setShowImageModal(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                {selectedImage.mimeType && selectedImage.mimeType.startsWith('image/') ? (
+                  <img 
+                    src={`${API_URL}/medical-history/image/${selectedImage._id}`}
+                    alt={selectedImage.originalName}
+                    style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                  />
+                ) : (
+                  <a
+                    href={`${API_URL}/medical-history/image/${selectedImage._id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <i className="fas fa-file-alt"></i> View {selectedImage.originalName}
+                  </a>
                 )}
               </div>
             </div>

@@ -118,21 +118,27 @@ const PatientHistory = () => {
   };
 
   const handleViewClick = (history) => {
-    if (!history || !history._id) {
+    if (!history || !history.historyChain || history.historyChain.length === 0) {
       console.error('Invalid history data:', history);
       setError('Invalid medical history data');
       return;
     }
 
+    // Get the latest history record from the chain
+    const latestHistory = history.historyChain[0];
+
     setSelectedPatient({
-      _id: history._id,
+      _id: latestHistory._id,
       patientId: history.patientId,
       patientName: history.patientName,
       doctorName: history.doctorName,
-      condition: history.condition || '',
-      notes: history.notes || '',
-      date: history.date,
-      version: history.version || 1
+      condition: latestHistory.condition || '',
+      notes: latestHistory.notes || '',
+      date: latestHistory.date,
+      version: latestHistory.version || 1,
+      ipfsCID: latestHistory.ipfsCID,
+      ipfsIV: latestHistory.ipfsIV,
+      fileInfo: latestHistory.fileInfo
     });
     setShowViewModal(true);
     setEditMode(false);
@@ -140,31 +146,36 @@ const PatientHistory = () => {
 
   const handleEditClick = (history) => {
     console.log('Editing history:', history);
-    // Make sure we have all required data
-    if (!history || !history._id) {
+    if (!history || !history.historyChain || history.historyChain.length === 0) {
       console.error('Invalid history data:', history);
       setError('Invalid medical history data');
       return;
     }
 
+    // Get the latest history record from the chain
+    const latestHistory = history.historyChain[0];
+
     // Store the complete history object
     const selectedPatientData = {
-      _id: history._id,
+      _id: latestHistory._id,
       patientId: history.patientId,
       patientName: history.patientName,
       doctorName: history.doctorName,
-      condition: history.condition || '',
-      notes: history.notes || '',
-      date: history.date,
-      version: history.version || 1
+      condition: latestHistory.condition || '',
+      notes: latestHistory.notes || '',
+      date: latestHistory.date,
+      version: latestHistory.version || 1,
+      ipfsCID: latestHistory.ipfsCID,
+      ipfsIV: latestHistory.ipfsIV,
+      fileInfo: latestHistory.fileInfo
     };
 
     console.log('Setting selected patient data:', selectedPatientData);
     setSelectedPatient(selectedPatientData);
 
     const editHistoryData = {
-      condition: history.condition || '',
-      notes: history.notes || ''
+      condition: latestHistory.condition || '',
+      notes: latestHistory.notes || ''
     };
     console.log('Setting edit history data:', editHistoryData);
     setEditHistory(editHistoryData);
@@ -212,31 +223,42 @@ const PatientHistory = () => {
         return;
       }
 
-      // Log the state before making the request
-      console.log('Selected Patient:', selectedPatient);
-      console.log('Edit History:', editHistory);
-
-      const requestData = {
+      // Create FormData object
+      const formData = new FormData();
+      
+      // Log the data before appending
+      console.log('Data being sent:', {
         historyId: selectedPatient._id,
-        condition: editHistory.condition.trim(),
-        notes: editHistory.notes.trim(),
-        date: selectedPatient.date
-      };
-
-      console.log('Saving edit with data:', {
-        ...requestData,
-        doctorEmail: userData.email
+        condition: editHistory.condition,
+        notes: editHistory.notes,
+        date: selectedPatient.date,
+        hasFile: !!editHistory.file
       });
+
+      // Append all fields to FormData
+      formData.append('historyId', selectedPatient._id);
+      formData.append('condition', editHistory.condition.trim());
+      formData.append('notes', editHistory.notes.trim());
+      formData.append('date', selectedPatient.date);
+      
+      if (editHistory.file) {
+        formData.append('file', editHistory.file);
+      }
+
+      // Log the FormData contents
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+      }
 
       const response = await axios.put(
         `${API_URL}/medical-history/edit/${userData.email}`,
-        requestData,
+        formData,
         {
           headers: {
-            Authorization: `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'multipart/form-data'
           },
-          timeout: 10000 // Add a 10 second timeout
+          timeout: 60000 // 60 second timeout
         }
       );
 
@@ -247,7 +269,7 @@ const PatientHistory = () => {
         setEditMode(false);
         setEditHistory(null);
         setSelectedPatient(null);
-        await fetchPatientHistories(); // Refresh the list
+        await fetchPatientHistories(); 
         alert('Medical history updated successfully!');
       } else {
         console.error('Update failed:', response.data);
@@ -274,6 +296,16 @@ const PatientHistory = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditHistory(prev => ({
+        ...prev,
+        file: file
+      }));
     }
   };
 
@@ -359,12 +391,6 @@ const PatientHistory = () => {
                       ? new Date(latestHistory.date).toLocaleDateString()
                       : 'N/A';
 
-                    console.log('Rendering history:', {
-                      patientName: history.patientName,
-                      doctorName: history.doctorName,
-                      history
-                    });
-
                     return (
                       <tr key={latestHistory._id}>
                         <td>{history.patientName || 'N/A'}</td>
@@ -376,27 +402,13 @@ const PatientHistory = () => {
                           <div className="action-buttons">
                             <button 
                               className="action-btn view"
-                              onClick={() => handleViewClick({
-                                ...history,
-                                _id: latestHistory._id,
-                                condition: latestHistory.condition,
-                                notes: latestHistory.notes,
-                                date: latestHistory.date,
-                                version: latestHistory.version
-                              })}
+                              onClick={() => handleViewClick(history)}
                             >
                               <i className="fas fa-eye"></i>
                             </button>
                             <button 
                               className="action-btn edit"
-                              onClick={() => handleEditClick({
-                                ...history,
-                                _id: latestHistory._id,
-                                condition: latestHistory.condition,
-                                notes: latestHistory.notes,
-                                date: latestHistory.date,
-                                version: latestHistory.version
-                              })}
+                              onClick={() => handleEditClick(history)}
                             >
                               <i className="fas fa-pen"></i>
                             </button>
@@ -425,7 +437,7 @@ const PatientHistory = () => {
       </div>
 
       {/* View/Edit Modal */}
-      {showViewModal && (
+      {showViewModal && selectedPatient && (
         <div className="modal-overlay">
           <div className="modal-content view-modal">
             <div className="modal-header">
@@ -480,13 +492,45 @@ const PatientHistory = () => {
                   <input 
                     type="date" 
                     value={selectedPatient?.date?.split('T')[0]} 
-                    onChange={(e) => setSelectedPatient({
-                      ...selectedPatient,
-                      date: e.target.value
-                    })}
-                    disabled={!editMode}
+                    disabled
                   />
                 </div>
+                {selectedPatient?.fileInfo && (
+                  <div className="form-group">
+                    <label>Uploaded Document</label>
+                    <div className="document-preview">
+                      {/* <p>File Name: {selectedPatient.fileInfo.originalName}</p> */}
+                      {selectedPatient.fileInfo.mimeType.startsWith('image/') ? (
+                        <img 
+                          src={`${API_URL}/medical-history/image/${selectedPatient._id}`}
+                          alt={selectedPatient.fileInfo.originalName}
+                          style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        <a 
+                          href={`${API_URL}/medical-history/image/${selectedPatient._id}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="view-document-link"
+                        >
+                          <i className="fas fa-file-alt"></i> View {selectedPatient.fileInfo.originalName}
+                        </a>
+                      )}
+                    </div>
+                    {editMode && (
+                      <div className="file-upload-section" style={{ marginTop: '10px' }}>
+                        <input
+                          type="file"
+                          onChange={handleFileChange}
+                          accept="image/*,.pdf,.doc,.docx"
+                        />
+                        <small className="file-info">
+                          Current file: {selectedPatient.fileInfo.originalName}
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
             </div>
             <div className="modal-footer">

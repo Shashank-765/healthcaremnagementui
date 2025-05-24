@@ -7,7 +7,7 @@ import bannerImage from '../image/banner.png';
 import doctorImage from '../image/girl.png';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const TotalAppointments = () => {
   const navigate = useNavigate();
@@ -25,7 +25,8 @@ const TotalAppointments = () => {
   const [newPatientHistory, setNewPatientHistory] = useState({
     patientEmail: '',
     condition: '',
-    notes: ''
+    notes: '',
+    file: null
   });
 
   useEffect(() => {
@@ -201,92 +202,107 @@ const TotalAppointments = () => {
     setNewPatientHistory({
       patientEmail: appointment.email,
       condition: '',
-      notes: ''
+      notes: '',
+      file: null
     });
     setShowCreateModal(true);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewPatientHistory(prev => ({
+        ...prev,
+        file: file
+      }));
+    }
   };
 
   const handleSaveNewHistory = async () => {
     try {
       setLoading(true);
-      console.log('Starting handleSaveNewHistory');
+        setError('');
       
       const userData = JSON.parse(localStorage.getItem('userData'));
-      console.log('UserData in handleSaveNewHistory:', {
-        hasData: !!userData,
-        hasToken: !!userData?.token,
-        role: userData?.role
-      });
+        console.log('UserData:', userData);
 
       if (!userData || !userData.token) {
-        console.log('No userData or token in handleSaveNewHistory');
         setError('Authentication required');
         return;
       }
 
       if (userData.role !== 'doctor') {
-        console.log('User is not a doctor in handleSaveNewHistory');
         setError('Only doctors can access this page');
         return;
       }
 
+        // Validate required fields
       if (!newPatientHistory.patientEmail || !newPatientHistory.condition || !newPatientHistory.notes) {
-        console.log('Missing required fields in newPatientHistory');
         setError('Please fill in all required fields');
         return;
       }
 
-      const historyData = {
-        patientEmail: newPatientHistory.patientEmail.trim().toLowerCase(),
-        doctorEmail: userData.email.trim().toLowerCase(),
-        condition: newPatientHistory.condition.trim(),
-        notes: newPatientHistory.notes.trim(),
-        date: new Date()
-      };
+        // Create FormData object
+        const formData = new FormData();
+        
+        // Log the data before appending
+        console.log('Data being sent:', {
+            patientEmail: newPatientHistory.patientEmail,
+            doctorEmail: userData.email,
+            condition: newPatientHistory.condition,
+            notes: newPatientHistory.notes,
+            hasFile: !!newPatientHistory.file
+        });
 
-      console.log('Sending history data:', historyData);
+        // Append all fields to FormData
+        formData.append('patientEmail', newPatientHistory.patientEmail.trim().toLowerCase());
+        formData.append('doctorEmail', userData.email.trim().toLowerCase());
+        formData.append('condition', newPatientHistory.condition.trim());
+        formData.append('notes', newPatientHistory.notes.trim());
+        formData.append('date', new Date().toISOString());
+        
+        if (newPatientHistory.file) {
+            formData.append('file', newPatientHistory.file);
+        }
 
+        // Log the FormData contents
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
+
+        // Make sure the URL is correct
       const response = await axios.post(
         `${API_URL}/medical-history/medical-create`, 
-        historyData,
+            formData,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
+                    'Content-Type': 'multipart/form-data'
+                },
+                timeout: 60000 // 60 second timeout
         }
       );
 
-      console.log('Create history response:', {
-        success: response.data.success,
-        message: response.data.message
-      });
+        console.log('Server response:', response.data);
 
       if (response.data.success) {
         setShowCreateModal(false);
         setNewPatientHistory({
           patientEmail: '',
           condition: '',
-          notes: ''
+                notes: '',
+                file: null
         });
         alert('Medical history created successfully!');
-        // Redirect to patient history page
         navigate('/doctor/patient-history');
       } else {
         setError(response.data.message);
       }
     } catch (error) {
-      console.log('Error in handleSaveNewHistory:', {
-        status: error.response?.status,
-        message: error.message,
-        responseData: error.response?.data
-      });
-      
-      if (error.response?.status === 401) {
-        console.log('Unauthorized error in handleSaveNewHistory');
-        setError('Session expired. Please login again');
+        if (error.code === 'ECONNABORTED') {
+            setError('Request timed out. Please try again.');
       } else {
-        setError(error.response?.data?.message || 'Failed to create patient history');
+            setError(error.response?.data?.message || 'Failed to create medical history');
       }
     } finally {
       setLoading(false);
@@ -465,6 +481,18 @@ const TotalAppointments = () => {
                     required
                     rows={3}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>File Upload:</label>
+                  <input 
+                    type="file"
+                    onChange={handleFileChange}
+                    accept="image/*,.pdf,.doc,.docx"
+                  />
+                  <small className="file-info">
+                    Supported formats: Images, PDF, Word documents (Max size: 5MB)
+                  </small>
                 </div>
               </form>
             </div>

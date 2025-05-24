@@ -25,7 +25,8 @@ const MedicalHistory = () => {
     // doctorId: '',
     condition: '',
     date: '',
-    notes: ''
+    notes: '',
+    files: []
   });
 
   useEffect(() => {
@@ -66,7 +67,11 @@ const MedicalHistory = () => {
 
       if (response.data.success) {
         const historyData = Array.isArray(response.data.data) ? response.data.data : [response.data.data];
-        console.log('Setting medical history with data:', historyData);
+        console.log('File Info in Response:', historyData.map(record => ({
+          id: record._id,
+          fileInfo: record.fileInfo,
+          ipfsData: record.ipfsData
+        })));
         setMedicalHistory(historyData);
       } else {
         setError(response.data.message || 'Failed to fetch medical history');
@@ -95,6 +100,7 @@ const MedicalHistory = () => {
   const displayedHistory = showAllHistory ? medicalHistory : medicalHistory.slice(0, 5);
 
   const handleViewRecord = (record) => {
+    console.log("Record data:", record, "ccc");
     setSelectedRecord(record);
     setShowModal(true);
   };
@@ -105,37 +111,159 @@ const MedicalHistory = () => {
   };
 
   const ViewModal = ({ record, onClose }) => {
+    console.log('Full Record in ViewModal:', record);
+    console.log('IPFS Data in ViewModal:', record?.ipfsData);
+    console.log('File Info in ViewModal:', record?.fileInfo);
+    console.log('Raw Record:', JSON.stringify(record, null, 2));
+
     if (!record) return null;
 
+    // Helper function to get file information
+    const getFileInfo = () => {
+        // If fileInfo is an array
+        if (Array.isArray(record.fileInfo)) {
+            return record.fileInfo;
+        }
+        // If fileInfo is a single object
+        else if (record.fileInfo && typeof record.fileInfo === 'object') {
+            return [record.fileInfo];
+        }
+        // If fileInfo is in ipfsData
+        else if (record.ipfsData?.file) {
+            return [{
+                originalName: record.ipfsData.file.originalName,
+                mimeType: record.ipfsData.file.mimeType,
+                size: record.ipfsData.file.size
+            }];
+        }
+        return [];
+    };
+
+    const files = getFileInfo();
+
     return (
-      <div className="modal-overlay">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h2>Medical Record Details</h2>
-            <button className="close-btn" onClick={onClose}>&times;</button>
-          </div>
-          <div className="modal-body">
-            <div className="record-detail">
-              <strong>Doctor Name:</strong> {record.doctorId?.fullName || record.doctorName || 'Self'}
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h2>Medical Record Details</h2>
+                    <button className="close-btn" onClick={onClose}>&times;</button>
+                </div>
+                <div className="modal-body">
+                    <div className="record-detail">
+                        <strong>Doctor Name:</strong> {record.doctorId?.fullName || record.doctorName || 'Self'}
+                    </div>
+                    <div className="record-detail">
+                        <strong>Condition:</strong> {record.condition || 'N/A'}
+                    </div>
+                    <div className="record-detail">
+                        <strong>Notes:</strong> {record.notes || 'N/A'}
+                    </div>
+                    <div className="record-detail">
+                        <strong>Date:</strong> {new Date(record.date).toLocaleDateString() || 'N/A'}
+                    </div>
+                    <div className="record-detail">
+                        <strong>Attached Files:</strong>
+                        {files.length > 0 ? (
+                            <ul className="file-list">
+                                {files.map((file, index) => (
+                                    <li key={index}>
+                                        {file.mimeType && file.mimeType.startsWith('image/') ? (
+                                            <img
+                                                src={`${API_URL}/medical-history/image/${record._id}`}
+                                                alt={file.originalName}
+                                                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain', display: 'block', marginBottom: '8px' }}
+                                            />
+                                        ) : (
+                                            <a
+                                                href={`${API_URL}/medical-history/image/${record._id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <i className="fas fa-file-alt"></i> {file.originalName}
+                                            </a>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            'No files attached'
+                        )}
+                    </div>
+                </div>
             </div>
-            <div className="record-detail">
-              <strong>Condition:</strong> {record.condition || 'N/A'}
-            </div>
-            <div className="record-detail">
-              <strong>Notes:</strong> {record.notes || 'N/A'}
-            </div>
-            <div className="record-detail">
-              <strong>Date:</strong> {new Date(record.date).toLocaleDateString() || 'N/A'}
-            </div>
-          </div>
         </div>
-      </div>
     );
   };
 
   useEffect(() => {
     console.log('Medical History State:', medicalHistory);
   }, [medicalHistory]);
+
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length > 0) {
+        setNewHistory(prev => ({
+            ...prev,
+            files: selectedFiles
+        }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    
+    try {
+        const formData = new FormData();
+        
+        // Append all fields to FormData
+        formData.append('email', userData.email);
+        formData.append('fullName', userData.email.split('@')[0]);
+        formData.append('doctorName', 'Self');
+        formData.append('condition', newHistory.condition.trim());
+        formData.append('notes', newHistory.notes.trim());
+        formData.append('date', newHistory.date || new Date().toISOString());
+        
+        // Change 'files' to 'file' to match multer configuration
+        newHistory.files.forEach((file) => {
+            formData.append('file', file); // Changed from 'files' to 'file'
+        });
+
+        const response = await axios.post(
+            `${API_URL}/medical-history/self-history`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${userData.token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            }
+        );
+
+        console.log('Server response:', response.data);
+        
+        if (response.data.success) {
+            setMedicalHistory(prevHistory => [...prevHistory, response.data.data]);
+            setShowCreatePopup(false);
+            setNewHistory({ 
+                fullName: '', 
+                condition: '', 
+                date: '', 
+                notes: '', 
+                files: [] 
+            });
+            alert('Medical history created successfully!');
+        }
+    } catch (err) {
+        console.error('Error creating medical history:', err);
+        if (err.response) {
+            console.error('Error response data:', err.response.data);
+            console.error('Error response status:', err.response.status);
+            console.error('Error response headers:', err.response.headers);
+        }
+        alert(err.response?.data?.message || 'Failed to create medical history');
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -208,25 +336,32 @@ const MedicalHistory = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedHistory.map((record, index) => (
-                      <tr key={record._id || index}>
-                        <td>{record.doctorId?.fullName || record.doctorName || 'Self'}</td>
-                        <td>{record.condition || 'N/A'}</td>
-                        <td>{record.notes || 'N/A'}</td>
-                        <td>{new Date(record.date).toLocaleDateString() || 'N/A'}</td>
-                        <td>
-                          <button 
-                            className="view-btn"
-                            onClick={() => handleViewRecord(record)}
-                          >
-                            <FaEye />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {displayedHistory.map((record, index) => {
+                      console.log('Record in table row:', record);
+                      return (
+                        <tr key={record._id || index}>
+                          <td>{record.doctorId?.fullName || record.doctorName || 'Self'}</td>
+                          <td>{record.condition || 'N/A'}</td>
+                          <td>{record.notes || 'N/A'}</td>
+                          <td>{new Date(record.date).toLocaleDateString() || 'N/A'}</td>
+                          <td>
+                            <button 
+                              className="view-btn"
+                              onClick={() => {
+                                console.log('Full Record before view:', record);
+                                console.log('File Info before view:', record.fileInfo);
+                                console.log('IPFS Data before view:', record.ipfsData);
+                                handleViewRecord(record);
+                              }}
+                            >
+                              <FaEye />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
-                
                 {medicalHistory.length > 5 && (
                   <button 
                     className="view-more-btn"
@@ -249,56 +384,7 @@ const MedicalHistory = () => {
               <button className="close-btn" onClick={() => setShowCreatePopup(false)}>&times;</button>
             </div>
             <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const userData = JSON.parse(localStorage.getItem('userData'));
-                
-                try {
-                    const requestData = {
-                        email: userData.email,
-                        fullName: userData.email.split('@')[0],
-                        doctorName: 'Self',
-                        condition: newHistory.condition,
-                        notes: newHistory.notes,
-                        date: newHistory.date
-                    };
-
-                    console.log('Sending request with data:', requestData);
-
-                    const response = await axios.post(
-                        `${API_URL}/medical-history/self-history`,
-                        requestData,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${userData.token}`
-                            }
-                        }
-                    );
-
-                    console.log('Server response:', response.data);
-                    
-                    if (response.data.success) {
-                        setMedicalHistory(prevHistory => {
-                            const newHistory = [...prevHistory, response.data.data];
-                            console.log('Updated history state:', newHistory);
-                            return newHistory;
-                        });
-                        
-                        setShowCreatePopup(false);
-                        setNewHistory({ fullName: '', condition: '', date: '', notes: '' });
-                        
-                        alert('Medical history created successfully!');
-                    }
-                } catch (err) {
-                    console.error('Error creating medical history:', {
-                        message: err.message,
-                        response: err.response?.data,
-                        status: err.response?.status,
-                        fullError: err
-                    });
-                    alert(err.response?.data?.message || 'Failed to create medical history. Please check console for details.');
-                }
-              }}
+              onSubmit={handleSubmit}
             >
               <div className="form-group">
                 <label>Full Name:</label>
@@ -334,6 +420,28 @@ const MedicalHistory = () => {
                   onChange={e => setNewHistory({ ...newHistory, notes: e.target.value })}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label>File Upload:</label>
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  accept="image/*,.pdf,.doc,.docx"
+                  multiple
+                />
+                <small className="file-info">
+                  Supported formats: Images, PDF, Word documents (Max size: 5MB per file, Max 5 files)
+                </small>
+                {newHistory.files.length > 0 && (
+                    <div className="selected-files">
+                        <p>Selected files:</p>
+                        <ul>
+                            {newHistory.files.map((file, index) => (
+                                <li key={index}>{file.name}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="submit" className="save-btn" style={{ background: '#4CAF50', color: 'white' }}>Save</button>

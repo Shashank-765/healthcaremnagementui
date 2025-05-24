@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../insurance/InsuranceSignup.css'; 
-import doctorImage from '../image/register5.png'; // Use your patient registration image
+import '../insurance/InsuranceSignup.css';
+import doctorImage from '../image/register5.png'; 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const InsuranceSignup = () => {
@@ -12,12 +12,16 @@ const InsuranceSignup = () => {
     password: '',
     phone: '',
     companyName: '',
-    role:''
+    companyweburl: '',
+    designation: '',
+    registrationNumber: '',
+    role: ''
   });
 
   const [errors, setErrors] = useState({
     email: '',
-    phone: ''
+    phone: '',
+    registrationNumber: ''
   });
 
   const validateEmail = (email) => {
@@ -38,6 +42,16 @@ const InsuranceSignup = () => {
     }
     if (!phoneRegex.test(phone)) {
       return 'Phone number must be exactly 10 digits';
+    }
+    return '';
+  };
+
+  const validateRegistrationNumber = (registrationNumber) => {
+    if (!registrationNumber) {
+      return 'Registration number is required';
+    }
+    if (registrationNumber.length < 5 || registrationNumber.length > 15) {
+      return 'Registration number must be between 5 and 15 characters';
     }
     return '';
   };
@@ -64,18 +78,25 @@ const InsuranceSignup = () => {
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'email') {
       setErrors(prev => ({
         ...prev,
         email: validateEmail(value)
       }));
     }
-    
+
     if (name === 'phone') {
       setErrors(prev => ({
         ...prev,
         phone: validatePhone(value)
+      }));
+    }
+
+    if (name === 'registrationNumber') {
+      setErrors(prev => ({
+        ...prev,
+        registrationNumber: validateRegistrationNumber(value)
       }));
     }
   };
@@ -86,14 +107,16 @@ const InsuranceSignup = () => {
     // Validate all fields before submission
     const emailError = validateEmail(formData.email);
     const phoneError = validatePhone(formData.phone);
+    const registrationNumberError = validateRegistrationNumber(formData.registrationNumber);
 
     setErrors({
       email: emailError,
-      phone: phoneError
+      phone: phoneError,
+      registrationNumber: registrationNumberError
     });
 
     // If there are any errors, don't submit
-    if (emailError || phoneError) {
+    if (emailError || phoneError || registrationNumberError) {
       return;
     }
 
@@ -105,6 +128,9 @@ const InsuranceSignup = () => {
       formDataToSend.append('password', formData.password);
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('companyName', formData.companyName);
+      formDataToSend.append('companyweburl', formData.companyweburl);
+      formDataToSend.append('registrationNumber', formData.registrationNumber);
+      formDataToSend.append('designation', formData.designation);
       formDataToSend.append('role', formData.role);
       if (formData.profilePhoto) {
         formDataToSend.append('image', formData.profilePhoto);
@@ -134,7 +160,7 @@ const InsuranceSignup = () => {
     <div className="signup-container">
       <div className="signup-left">
         <h2>Insurance Registration Form</h2>
-  
+
         <form onSubmit={handleSubmit}>
           <div className="form-sections">
             <div className="section">
@@ -200,14 +226,36 @@ const InsuranceSignup = () => {
                 />
               </div>
               <div className="form-group">
-              <input 
-                type="file" 
-                onChange={handleFileUpload} 
-                accept="image/*" 
-              />
+                <input type="text"
+                  name="companyweburl"
+                  value={formData.companyweburl}
+                  onChange={handleInputChange}
+                  placeholder="companyweburl"
+                  className="signup-input"
+                />
               </div>
               <div className="form-group">
-              <input
+                <input
+                  type="text"
+                  name="registrationNumber"
+                  value={formData.registrationNumber}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  required
+                  placeholder="Registration Number (5-15 characters)"
+                  className={`signup-input ${errors.registrationNumber ? 'error-input' : ''}`}
+                />
+                {errors.registrationNumber && <span className="error-message">{errors.registrationNumber}</span>}
+              </div>
+              <div className="form-group">
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                />
+              </div>
+              <div className="form-group">
+                <input
                   type="text"
                   name="role"
                   value={formData.role}
@@ -216,14 +264,24 @@ const InsuranceSignup = () => {
                   className="signup-input"
                 />
               </div>
+              <div className="form-group">
+                <input
+                  type="text"
+                  name="designation"
+                  value={formData.designation}
+                  onChange={handleInputChange}
+                  placeholder="designation"
+                  className="signup-input"
+                />
+              </div>
             </div>
           </div>
 
           <div className="button-group">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="register-button"
-              disabled={errors.email || errors.phone}
+              disabled={errors.email || errors.phone || errors.registrationNumber}
             >
               Register as Insurance
             </button>

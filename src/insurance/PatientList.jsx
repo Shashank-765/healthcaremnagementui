@@ -7,7 +7,7 @@ import logoImage from '../image/logo.png';
 import correct from '../image/correct1.jpg';
 import Cookies from 'js-cookie';
 import useInsurancePatients from './useInsurancePatients';
-
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const InsurancePatientList = () => {
   const navigate = useNavigate();
   const [expandedItem, setExpandedItem] = useState(null);
@@ -17,6 +17,8 @@ const InsurancePatientList = () => {
   const [showAccessRequestPopup, setShowAccessRequestPopup] = useState(false);
   const [filter, setFilter] = useState('all');
   const [showRequestSentPopup, setShowRequestSentPopup] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   // Use the custom hook
   const {
@@ -341,6 +343,7 @@ const InsurancePatientList = () => {
                         <th>Doctor</th>
                         <th>Condition</th>
                         <th>Notes</th>
+                        <th>Document</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -350,6 +353,22 @@ const InsurancePatientList = () => {
                           <td>{record.doctorName}</td>
                           <td>{record.condition}</td>
                           <td>{record.notes}</td>
+                          <td>
+                            {record?.fileInfo ? (
+                              <button
+                                className="action-btn view"
+                                onClick={() => {
+                                  setSelectedImage({ ...record.fileInfo, _id: record._id });
+                                  setShowImageModal(true);
+                                }}
+                                title="View Document"
+                              >
+                                <i className="fas fa-eye"></i>
+                              </button>
+                            ) : (
+                              "No document"
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -405,6 +424,36 @@ const InsurancePatientList = () => {
               </div>
               <div className="modal-body">
                 <p>A request for this patient is already pending.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showImageModal && selectedImage && (
+          <div className="modal-overlay">
+            <div className="modal-content image-modal">
+              <div className="modal-header">
+                <h3>Document: {selectedImage.originalName}</h3>
+                <button className="close-btn" onClick={() => setShowImageModal(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                {selectedImage.mimeType && selectedImage.mimeType.startsWith('image/') ? (
+                  <img 
+                    src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/medical-history/image/${selectedImage._id}`}
+                    alt={selectedImage.originalName}
+                    style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                  />
+                ) : (
+                  <a
+                    href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/medical-history/image/${selectedImage._id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <i className="fas fa-file-alt"></i> View {selectedImage.originalName}
+                  </a>
+                )}
               </div>
             </div>
           </div>

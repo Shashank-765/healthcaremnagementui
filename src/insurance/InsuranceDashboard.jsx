@@ -15,6 +15,8 @@ const InsuranceDashboard = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [showViewPopup, setShowViewPopup] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [showImageModal, setShowImageModal] = useState(false);
 
     // Use the custom hook
     const {
@@ -416,6 +418,7 @@ const InsuranceDashboard = () => {
                                                 <th>Doctor</th>
                                                 <th>Condition</th>
                                                 <th>Notes</th>
+                                                <th>Document</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -425,12 +428,58 @@ const InsuranceDashboard = () => {
                                                     <td>{record.doctorName}</td>
                                                     <td>{record.condition}</td>
                                                     <td>{record.notes}</td>
+                                                    <td>
+                                                        {record?.fileInfo ? (
+                                                            <button
+                                                                className="action-btn view"
+                                                                onClick={() => {
+                                                                    setSelectedImage({ ...record.fileInfo, _id: record._id });
+                                                                    setShowImageModal(true);
+                                                                }}
+                                                                title="View Document"
+                                                            >
+                                                                <i className="fas fa-eye"></i>
+                                                            </button>
+                                                        ) : (
+                                                            "No document"
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 ) : (
                                     <p>No medical history available</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showImageModal && selectedImage && (
+                    <div className="modal-overlay">
+                        <div className="modal-content image-modal">
+                            <div className="modal-header">
+                                <h3>Document: {selectedImage.originalName}</h3>
+                                <button className="close-btn" onClick={() => setShowImageModal(false)}>
+                                    <i className="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                {selectedImage.mimeType && selectedImage.mimeType.startsWith('image/') ? (
+                                    <img 
+                                        src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/medical-history/image/${selectedImage._id}`}
+                                        alt={selectedImage.originalName}
+                                        style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                                    />
+                                ) : (
+                                    <a
+                                        href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/medical-history/image/${selectedImage._id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <i className="fas fa-file-alt"></i> View {selectedImage.originalName}
+                                    </a>
                                 )}
                             </div>
                         </div>
