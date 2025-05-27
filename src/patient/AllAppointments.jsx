@@ -19,6 +19,12 @@ const AllAppointments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [ratingDoctor, setRatingDoctor] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [selectedDoctorEmail, setSelectedDoctorEmail] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
 
   const fetchAppointments = async (userData) => {
     try {
@@ -62,7 +68,7 @@ const AllAppointments = () => {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       if (error.response?.status === 401) {
         setError('Session expired. Please log in again.');
         navigate('/patient/patient-dashboard', { replace: true });
@@ -113,12 +119,9 @@ const AllAppointments = () => {
           'Content-Type': 'application/json'
         }
       });
-
-      console.log('Delete response:', response);
-
       if (response.status === 200 && response.data.success) {
         // Remove the deleted appointment from the state
-        setAppointments(prevAppointments => 
+        setAppointments(prevAppointments =>
           prevAppointments.filter(apt => apt._id !== appointment._id)
         );
         setShowDeleteModal(false);
@@ -129,7 +132,7 @@ const AllAppointments = () => {
     } catch (error) {
       console.error('Delete error:', error.message);
       console.error('Error response:', error.response);
-      
+
       if (error.response?.status === 401) {
         setError('Session expired. Please try again from dashboard.');
         navigate('/patient/patient-dashboard', { replace: true });
@@ -161,9 +164,53 @@ const AllAppointments = () => {
 
     window.addEventListener('resize', handleResize);
     handleResize();
-    
+
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleRatingSubmit = async () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData'));
+      if (!userData || !userData.token) {
+        setError('Please log in to submit rating');
+        return;
+      }
+
+      const response = await axios.post(
+        `${API_URL}/doctor/rate-doctor`,
+        {
+          doctorName: selectedDoctorName,
+          rating,
+          comment: ratingComment
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setShowRatingModal(false);
+        setRating(0);
+        setRatingComment('');
+        // You can add a success message here
+      }
+    } catch (error) {
+      // Check for the specific backend error message
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message === "You have already rated this doctor"
+      ) {
+        alert("You have already rated this doctor."); // <-- You can use a custom modal/toast here
+        setShowRatingModal(false);
+      } else {
+        setError('Failed to submit rating. Please try again.');
+      }
+    }
+  };
 
   return (
     <div className="dashboard-container-patient">
@@ -171,18 +218,18 @@ const AllAppointments = () => {
         <i className={`fas fa-${isSidebarOpen ? 'times' : 'bars'}`}></i>
       </button>
 
-      <Sidebar 
+      <Sidebar
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
         isSubmenuOpen={true}
       />
-      
+
       <div className={`main-content2 ${isSidebarOpen ? 'content-shifted' : ''}`}>
-        <Navbar 
+        <Navbar
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={toggleSidebar}
         />
-        
+
         <div className="patient-banner" style={{ backgroundImage: `url(${bannerImage})` }}>
           <div className="banner-content">
             <div className="doctor-profile">
@@ -258,8 +305,8 @@ const AllAppointments = () => {
                         }
                       </td> */}
                       <td>
-  {new Date(appointment.appointmentDate).toLocaleDateString('en-US')}
-</td>
+                        {new Date(appointment.appointmentDate).toLocaleDateString('en-US')}
+                      </td>
                       <td>{appointment.appointmentTime || 'N/A'}</td>
                       <td>
                         <span className={`status-badge ${appointment.status?.toLowerCase()}`}>
@@ -267,13 +314,13 @@ const AllAppointments = () => {
                         </span>
                       </td>
                       <td className="action-buttons">
-                        <button 
+                        <button
                           className="action-btn view"
                           onClick={() => handleView(appointment)}
                         >
                           <i className="fas fa-eye"></i>
                         </button>
-                        <button 
+                        <button
                           className="action-btn delete"
                           onClick={() => {
                             setSelectedAppointment(appointment);
@@ -281,6 +328,15 @@ const AllAppointments = () => {
                           }}
                         >
                           <i className="fas fa-trash"></i>
+                        </button>
+                        <button
+                          className="action-btn rate"
+                          onClick={() => {
+                            setSelectedDoctorName(appointment.doctor.name);
+                            setShowRatingModal(true);
+                          }}
+                        >
+                          <i className="fas fa-star"></i>
                         </button>
                       </td>
                     </tr>
@@ -307,16 +363,16 @@ const AllAppointments = () => {
                 <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctor?.name || 'N/A'}</p>
                 <p><strong>Department:</strong> {selectedAppointment.department || 'N/A'}</p>
                 <p><strong>Date:</strong> {
-                  selectedAppointment.appointmentDate ? 
-                  new Date(selectedAppointment.appointmentDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  }) 
-                  : 'N/A'
+                  selectedAppointment.appointmentDate ?
+                    new Date(selectedAppointment.appointmentDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })
+                    : 'N/A'
                 }</p>
                 <p><strong>Time:</strong> {selectedAppointment.appointmentTime || 'N/A'}</p>
-                <p><strong>Status:</strong> 
+                <p><strong>Status:</strong>
                   <span className={`status-badge ${selectedAppointment.status?.toLowerCase()}`}>
                     {selectedAppointment.status}
                   </span>
@@ -351,6 +407,46 @@ const AllAppointments = () => {
                 </button>
                 <button className="cancel-btn" onClick={() => setShowDeleteModal(false)}>
                   No, Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Rating Modal */}
+      {showRatingModal && (
+        <div className="modal-overlay">
+          <div className="modal-content rating-modal">
+            <div className="modal-header">
+              <h3>Rate Doctor</h3>
+              <button className="close-btn" onClick={() => setShowRatingModal(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="rating-stars">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <i
+                    key={star}
+                    className={`fas fa-star ${star <= rating ? 'active' : ''}`}
+                    onClick={() => setRating(star)}
+                    style={{ cursor: 'pointer', fontSize: '24px', color: star <= rating ? '#ffd700' : '#ccc' }}
+                  />
+                ))}
+              </div>
+              <textarea
+                placeholder="Add your comment (optional)"
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                className="rating-comment"
+              />
+              <div className="modal-footer">
+                <button className="submit-btn" onClick={handleRatingSubmit}>
+                  Submit Rating
+                </button>
+                <button className="cancel-btn" onClick={() => setShowRatingModal(false)}>
+                  Cancel
                 </button>
               </div>
             </div>

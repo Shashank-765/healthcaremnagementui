@@ -95,21 +95,19 @@ const PatientDashboard = () => {
           navigate('/', { replace: true });
           return;
         }
-        if(!isApproved){
-          const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const data = await res.json();
-          if (data.success) {
-            setDashboard(data.data);
-            setIsApproved(true);
-          } else {
-            setError(data.message || 'Failed to load dashboard');
+        const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setDashboard(data.data);
+          setIsApproved(true);
+        } else {
+          setError(data.message || 'Failed to load dashboard');
         }
       } catch (err) {
         console.error('Dashboard fetch error:', err);

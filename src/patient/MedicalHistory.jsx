@@ -28,6 +28,8 @@ const MedicalHistory = () => {
     notes: '',
     files: []
   });
+  const [ratingDoctorEmail, setRatingDoctorEmail] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('userData'));
@@ -162,7 +164,7 @@ const MedicalHistory = () => {
                         <strong>Date:</strong> {new Date(record.date).toLocaleDateString() || 'N/A'}
                     </div>
                     <div className="record-detail">
-                        <strong>Attached Files:</strong>
+                        <strong>Attached File:</strong>
                         {files.length > 0 ? (
                             <ul className="file-list">
                                 {files.map((file, index) => (

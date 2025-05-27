@@ -8,6 +8,7 @@ import logoImage from '../image/logo.png';
 import Navbar from '../component/Navbar';
 import Sidebar from '../component/Sidebar';
 import axios from 'axios';
+import { FaStar } from 'react-icons/fa';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const DoctorDashboard = () => {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ const DoctorDashboard = () => {
   const [hasBeenClicked, setHasBeenClicked] = useState(false);
   const [approving, setApproving] = useState(false);
   const [approvalError, setApprovalError] = useState(null);
+  const [reviewSummary, setReviewSummary] = useState({ totalReviews: 0, averageRating: 0 });
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -202,6 +204,38 @@ const DoctorDashboard = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  // Fetch review summary
+  useEffect(() => {
+    const fetchReviewSummary = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        const token = userData.token;
+        const doctorEmail = userData.email;
+        if (!token || userData.role !== 'doctor') return;
+
+        // Use query param for doctorEmail
+        const response = await axios.get(
+          `${API_URL}/doctor/reviewsummary?doctorEmail=${encodeURIComponent(doctorEmail)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        if (response.data.success) {
+          setReviewSummary({
+            totalReviews: response.data.data.totalRatings,
+            averageRating: Number(response.data.data.averageRating)
+          });
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    fetchReviewSummary();
+  }, []);
+
   if (loading) {
     return (
       <div className="dashboard-container" style={{
@@ -301,10 +335,10 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Appointments and Statistics Row */}
-        <div className="dashboard-row">
+        {/* Appointments and Review Row */}
+        <div className="row dashboard-row-equal" style={{marginTop: '0'}}>
           {/* Recent Appointments Column */}
-          <div className="dashboard-col-full">
+          <div className="col-md-9" style={{paddingRight: '16px'}}>
             <div className="recent-appointments">
               <div className="section-header">
                 <h2>Recent Appointments</h2>
@@ -343,6 +377,26 @@ const DoctorDashboard = () => {
                 <button className="view-more-btn" onClick={() => navigate('/doctor/total-appointments')}>
                   View More
                 </button>
+              </div>
+            </div>
+          </div>
+          {/* Review Summary Card */}
+          <div className="col-md-3" style={{paddingLeft: '0'}}>
+            <div className="review-summary-card full-height">
+              <h4 style={{marginBottom: '16px'}}>Reviews Summary</h4>
+              <div style={{fontSize: '2.2rem', fontWeight: 700, color: '#4a90e2'}}>
+                {reviewSummary.averageRating ? reviewSummary.averageRating.toFixed(1) : '0.0'}
+                <span style={{fontSize: '1.2rem', color: '#ffc107', marginLeft: 8}}>
+                  {[1,2,3,4,5].map(star => (
+                    <FaStar key={star} color={star <= Math.round(reviewSummary.averageRating) ? '#ffc107' : '#e4e5e9'} />
+                  ))}
+                </span>
+              </div>
+              <div style={{margin: '8px 0 0 0', color: '#888', fontSize: '1rem'}}>
+                Overall Rating
+              </div>
+              <div style={{marginTop: '18px', fontSize: '1.1rem', color: '#333'}}>
+                <b>{reviewSummary.totalReviews}</b> patient review{reviewSummary.totalReviews === 1 ? '' : 's'}
               </div>
             </div>
           </div>
