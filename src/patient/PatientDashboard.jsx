@@ -11,7 +11,7 @@ import doctorImage from '../image/girl.png';
 // import doctorImage from '../image/doctor.png';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
-const axios = require('axios');
+import axios from 'axios';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -88,6 +88,7 @@ const PatientDashboard = () => {
       try {
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         const token = userData.token;
+        const patientEmail = userData.email;
         
         if (!token || userData.role !== 'patient') {
           setError('Please login as a patient to view dashboard');
@@ -95,19 +96,22 @@ const PatientDashboard = () => {
           navigate('/', { replace: true });
           return;
         }
-        const res = await fetch(`${API_URL}/patient/patient-dashboard`, {
+
+        const response = await axios.get(`${API_URL}/patient/patient-dashboard`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
+          },
+          params: {
+            email: patientEmail
           }
         });
 
-        const data = await res.json();
-        if (data.success) {
-          setDashboard(data.data);
+        if (response.data.success) {
+          setDashboard(response.data.data);
           setIsApproved(true);
         } else {
-          setError(data.message || 'Failed to load dashboard');
+          setError(response.data.message || 'Failed to load dashboard');
         }
       } catch (err) {
         console.error('Dashboard fetch error:', err);

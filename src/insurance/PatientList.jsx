@@ -350,7 +350,7 @@ const InsurancePatientList = () => {
                       {selectedPatient.medicalHistory.map((record, index) => (
                         <tr key={index}>
                           <td>{new Date(record.date).toLocaleDateString()}</td>
-                          <td>{record.doctorName}</td>
+                          <td>{record.doctorName || 'self'}</td>
                           <td>{record.condition}</td>
                           <td>{record.notes}</td>
                           <td>

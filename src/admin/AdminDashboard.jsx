@@ -592,7 +592,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="appointment-details">
                           <p><i className="fas fa-user"></i> {confirmedAppointments[0].patient.name}</p>
-                          <p><i className="fas fa-calendar"></i> {new Date(confirmedAppointments[0].appointmentDate).toLocaleDateString()} {confirmedAppointments[0].appointmentTime}</p>
+                          {/* <p><i className="fas fa-calendar"></i> {new Date(confirmedAppointments[0].appointmentDate).toLocaleDateString()} {confirmedAppointments[0].appointmentTime}</p> */}
                         </div>
                         <div className="appointment-status">
                           <span className="status-badge confirmed">Confirmed</span>
@@ -632,7 +632,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="appointment-details">
                           <p><i className="fas fa-user"></i> {pendingAppointments[0].patient.name}</p>
-                          <p><i className="fas fa-calendar"></i> {new Date(pendingAppointments[0].appointmentDate).toLocaleDateString()} {pendingAppointments[0].appointmentTime}</p>
+                          {/* <p><i className="fas fa-calendar"></i> {new Date(pendingAppointments[0].appointmentDate).toLocaleDateString()} {pendingAppointments[0].appointmentTime}</p> */}
                         </div>
                         <div className="appointment-status">
                           <span className="status-badge pending">Pending</span>

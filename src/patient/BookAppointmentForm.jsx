@@ -85,6 +85,10 @@ const BookAppointmentForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
     try {
         const userData = JSON.parse(localStorage.getItem('userData'));
         if (!userData || !userData.token) {
@@ -132,29 +136,23 @@ const BookAppointmentForm = () => {
             // Redirect to appointments list after 2 seconds
             setTimeout(() => {
                 navigate('/patient/all-appointments');
-            }, 1000);
+            }, 2000);
         } else {
-            if (response.data.response?.status === 500) {
-                setError('Server is busy or encountered an error. Please try again later.');
-            } else {
-                setError(response.data.message || 'Failed to book appointment');
-            }
+            setError(response.data.message || 'Failed to book appointment');
         }
     } catch (error) {
-        console.log('Error booking appointment:', error.message);
+        console.error('Error booking appointment:', error);
         
         if (error.response) {
             // Server responded with error
-            if (error.response.status === 500) {
-                setError('Server is busy or encountered an error. Please try again later.');
-            } else {
-                setError(error.response.data.message || 'Failed to book appointment');
-            }
+            setError(error.response.data.message || 'Failed to book appointment');
         } else if (error.request) {
-            setError('Server is not responding or is busy. Please try again later.');
+            setError('Unable to connect to server. Please check your internet connection.');
         } else {
             setError('Error creating appointment. Please try again.');
         }
+    } finally {
+        setLoading(false);
     }
   };
 

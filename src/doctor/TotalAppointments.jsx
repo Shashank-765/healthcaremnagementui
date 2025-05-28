@@ -53,8 +53,6 @@ const TotalAppointments = () => {
         }
       });
 
-      console.log('Full API Response:', response.data);
-
       if (response.data.success) {
         const appointments = response.data.data?.appointments || [];
         
@@ -104,6 +102,15 @@ const TotalAppointments = () => {
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
+        // Get the current appointment
+        const currentAppointment = appointments.find(apt => apt._id === appointmentId);
+        
+        // Check if current status is 'confirm'
+        if (currentAppointment.status === 'confirm') {
+            setError('Cannot change status of confirmed appointments');
+            return;
+        }
+
         setError('');
         setAppointments(prevAppointments =>
             prevAppointments.map(appointment =>
@@ -334,7 +341,7 @@ const TotalAppointments = () => {
                 <i className="fas fa-search"></i>
                 <input 
                   type="text" 
-                  placeholder="Search by patient name, email or status..."
+                  placeholder="Search by patient name"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -375,7 +382,7 @@ const TotalAppointments = () => {
                           value={appointment.status || 'pending'}
                           onChange={(e) => handleStatusChange(appointment._id, e.target.value)}
                           className={`status-select ${appointment.status || 'pending'}`}
-                          disabled={appointment.updating}
+                          disabled={appointment.updating || appointment.status === 'confirm'}
                         >
                           <option value="pending">Pending</option>
                           <option value="confirm">Confirm</option>

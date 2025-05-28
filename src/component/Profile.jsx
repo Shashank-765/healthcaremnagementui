@@ -12,36 +12,44 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const userData = JSON.parse(localStorage.getItem('userData'));
 
-  // Profile data state
+  console.log('User Role from localStorage:', userData?.role); // Debug log
+
+  // Add CSS styles for read-only fields
+  const readOnlyStyle = {
+    cursor: 'not-allowed',
+    pointerEvents: 'none',
+    backgroundColor: '#f5f5f5',
+    opacity: '0.8'
+  };
+ const emergencyContactStyle = {
+    backgroundColor: isEditing ? '#ffffff' : '#f5f5f5'
+  };
+
   const [profileData, setProfileData] = useState({
     fullName: "",
     age: "",
     contact: "",
     email: "",
     bloodGroup: "",
-    specialization: ""
+    specialization: "",
+    emergencyContact: "",
+    emergencyContacts: []
   });
-
-  // Fetch profile data on component mount
+  const [userRole, setUserRole] = useState("");
   useEffect(() => {
+    if (!userData || !userData.token) {
+      setError("No authentication token found. Please login again.");
+      navigate('/login');
+      return;
+    }
     fetchProfileData();
   }, []);
 
   const fetchProfileData = async () => {
     try {
       setLoading(true);
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      
-      if (!userData || !userData.token) {
-        setError("No authentication token found. Please login again.");
-        navigate('/login');
-        return;
-      }
-
-      console.log('Fetching profile data...');
-      console.log('API URL:', `${API_URL}/patient/profile-view`);
-      
       const response = await axios.get(`${API_URL}/patient/profile-view`, {
         headers: {
           Authorization: `Bearer ${userData.token}`
@@ -51,27 +59,17 @@ const Profile = () => {
       console.log('Profile API Response:', response.data);
 
       if (response.data.success) {
-        setProfileData(response.data.data);
+        setProfileData(prev => ({
+          ...response.data.data,
+          emergencyContact: response.data.data.emergencyContact || '',
+          emergencyContacts: response.data.data.emergencyContacts || []
+        }));
       } else {
         setError(response.data.message || "Failed to fetch profile data");
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status
-      });
-
-      if (err.response?.status === 401) {
-        setError("Session expired. Please login again.");
-        localStorage.removeItem('userData');
-        navigate('/login');
-      } else if (err.response?.status === 404) {
-        setError("Profile not found. Please contact support.");
-      } else {
-        setError(err.response?.data?.message || "Error fetching profile data. Please try again later.");
-      }
+      setError(err.response?.data?.message || "Error fetching profile data");
     } finally {
       setLoading(false);
     }
@@ -95,28 +93,54 @@ const Profile = () => {
 
   const handleSaveClick = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData'))
-      // TODO: Implement update profile API call here
-      // const response = await axios.put(`${API_URL}/patient/updateprofile`, profileData, {
-      //   headers: {
-      //     Authorization: `Bearer ${token}`
-      //   }
-      // });
+      const userData = JSON.parse(localStorage.getItem('userData'));
       
-      setIsEditing(false);
-      // Refresh profile data after update
-      await fetchProfileData();
+      // Validate emergency contact before sending
+      if (profileData.emergencyContact.length !== 10) {
+        setError("Emergency contact must be exactly 10 digits");
+        return;
+      }
+      
+      const updateData = {
+        emergencyContact: profileData.emergencyContact
+      };
+      
+      const response = await axios.put(`${API_URL}/patient/update-emergency-contact`, updateData, {
+        headers: {
+          Authorization: `Bearer ${userData.token}`
+        }
+      });
+      
+      if (response.data.success) {
+        setIsEditing(false);
+        setProfileData(prev => ({
+          ...prev,
+          emergencyContacts: response.data.data.emergencyContacts
+        }));
+      } else {
+        setError(response.data.message || "Error updating emergency contact");
+      }
     } catch (err) {
-      setError(err.response?.data?.message || "Error updating profile");
+      console.error('Error updating emergency contact:', err);
+      setError(err.response?.data?.message || "Error updating emergency contact");
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'emergencyContact') {
+      // Only allow numbers and max 10 digits
+      if (value.length <= 10 && /^\d*$/.test(value)) {
+        setProfileData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    }
+  };
+
+  const renderEmergencyContacts = () => {
+    if (!profileData.emergencyContacts?.length) return null;
   };
 
   if (loading) {
@@ -197,14 +221,9 @@ const Profile = () => {
                         type="text" 
                         name="fullName"
                         value={profileData.fullName} 
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
+                        disabled={true}
+                        style={readOnlyStyle}
                       />
-                      {!isEditing && (
-                        <button className="edit-field-btn" onClick={handleEditClick}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
                     </div>
                   </div>
                   <div className="form-group col-md-6">
@@ -214,53 +233,66 @@ const Profile = () => {
                         type="number" 
                         name="age"
                         value={profileData.age} 
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
+                        disabled={true}
+                        style={readOnlyStyle}
                       />
-                      {!isEditing && (
-                        <button className="edit-field-btn" onClick={handleEditClick}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
                 <div className="form-row">
-                  {profileData.bloodGroup && (
+                  <div className="form-group col-md-6">
+                    <label>Emergency Contact</label>
+                    <div className="input-group">
+                      <input 
+                        type="tel" 
+                        name="emergencyContact"
+                        value={profileData.emergencyContact} 
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                        style={emergencyContactStyle}
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        title="Please enter exactly 10 digits"
+                        placeholder="Enter 10 digit number"
+                      />
+                      {!isEditing && (
+                        <button className="edit-btn" onClick={handleEditClick}>
+                          <i className="fas fa-edit"></i>
+                        </button>
+                      )}
+                    </div>
+                    {isEditing && profileData.emergencyContact && profileData.emergencyContact.length !== 10 && (
+                      <small className="text-danger">
+                        Emergency contact must be exactly 10 digits
+                      </small>
+                    )}
+                    {renderEmergencyContacts()}
+                  </div>
+                  {userData?.role === 'patient' && (
                     <div className="form-group col-md-6">
                       <label>Blood Group</label>
                       <div className="input-group">
                         <input 
                           type="text" 
                           name="bloodGroup"
-                          value={profileData.bloodGroup} 
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
+                          value={profileData.bloodGroup || ''} 
+                          disabled={true}
+                          style={readOnlyStyle}
                         />
-                        {!isEditing && (
-                          <button className="edit-field-btn" onClick={handleEditClick}>
-                            <i className="fas fa-edit"></i>
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
-                  {profileData.specialization && (
+                  {userData?.role === 'doctor' && (
                     <div className="form-group col-md-6">
                       <label>Specialization</label>
                       <div className="input-group">
                         <input 
                           type="text" 
                           name="specialization"
-                          value={profileData.specialization} 
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
+                          value={profileData.specialization || ''} 
+                          disabled={true}
+                          style={readOnlyStyle}
                         />
-                        {!isEditing && (
-                          <button className="edit-field-btn" onClick={handleEditClick}>
-                            <i className="fas fa-edit"></i>
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
@@ -273,14 +305,9 @@ const Profile = () => {
                         type="tel" 
                         name="contact"
                         value={profileData.contact} 
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
+                        disabled={true}
+                        style={readOnlyStyle}
                       />
-                      {!isEditing && (
-                        <button className="edit-field-btn" onClick={handleEditClick}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
                     </div>
                   </div>
                   <div className="form-group col-md-6">
@@ -290,14 +317,9 @@ const Profile = () => {
                         type="email" 
                         name="email"
                         value={profileData.email} 
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
+                        disabled={true}
+                        style={readOnlyStyle}
                       />
-                      {!isEditing && (
-                        <button className="edit-field-btn" onClick={handleEditClick}>
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>

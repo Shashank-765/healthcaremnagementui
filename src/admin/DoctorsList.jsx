@@ -22,7 +22,6 @@ const DoctorsList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
   const [showViewPopup, setShowViewPopup] = useState(false);
-  const [showEditPopup, setShowEditPopup] = useState(false);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +40,7 @@ const DoctorsList = () => {
   const [originalEmail, setOriginalEmail] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const userData = JSON.parse(localStorage.getItem('userData'));
 
   // Fetch doctors data with filters and pagination
   const fetchDoctors = async (page = 1) => {
@@ -59,6 +59,8 @@ const DoctorsList = () => {
       queryParams.append('page', page);
       queryParams.append('limit', 10);
 
+      console.log('Fetching doctors with params:', queryParams.toString());
+
       const response = await axios.get(`${API_URL}/doctor/readdoctors?${queryParams.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -67,8 +69,46 @@ const DoctorsList = () => {
       });
 
       if (response.data) {
-        console.log('Doctors data received:', response.data.data); // Debug log
-        setDoctors(response.data.data);
+        console.log('Raw doctors data received:', response.data.data);
+        
+        // Process each doctor to get experience from IPFS
+        const doctorsWithUpdates = await Promise.all(response.data.data.map(async (doctor) => {
+          try {
+            // If IPFS data exists, try to get experience from there
+            if (doctor.ipfsCID && doctor.ipfsIV) {
+              const ipfsData = await axios.get(`${API_URL}/doctor/getipfsdata/${doctor._id}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              console.log('IPFS data for doctor:', doctor._id, ipfsData.data);
+              
+              return {
+                ...doctor,
+                experience: ipfsData.data.experience || doctor.experience || 0,
+                availability: doctor.availability || 'Available'
+              };
+            }
+            
+            return {
+              ...doctor,
+              experience: doctor.experience || 0,
+              availability: doctor.availability || 'Available'
+            };
+          } catch (error) {
+            console.error('Error fetching IPFS data for doctor:', doctor._id, error);
+            return {
+              ...doctor,
+              experience: doctor.experience || 0,
+              availability: doctor.availability || 'Available'
+            };
+          }
+        }));
+
+        console.log('Processed doctors data:', doctorsWithUpdates);
+        setDoctors(doctorsWithUpdates);
         setTotalPages(response.data.totalPages || 1);
         setCurrentPage(response.data.page || 1);
       }
@@ -230,12 +270,6 @@ const DoctorsList = () => {
     setShowViewPopup(true);
   };
 
-  const handleEdit = (doctor) => {
-    setSelectedDoctor(doctor);
-    setOriginalEmail(doctor.email);
-    setShowEditPopup(true);
-  };
-
   const handleDelete = (doctor) => {
     setSelectedDoctor(doctor);
     setShowDeletePopup(true);
@@ -243,125 +277,6 @@ const DoctorsList = () => {
 
   const handleAddDoctor = () => {
     navigate('/admin/add-doctor');
-  };
-
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      let token = userData?.token;   
-      if (!token) {
-        throw new Error('No token found');
-      }
-
-      // Log current state before update
-      console.log('Current doctor state:', selectedDoctor);
-
-      // Create FormData object to handle file upload
-      const formData = new FormData();
-      
-      // Add all fields to FormData
-      formData.append('fullName', selectedDoctor.fullName);
-      formData.append('specialization', selectedDoctor.specialization);
-      formData.append('experience', selectedDoctor.experience);
-      formData.append('availability', selectedDoctor.availability);
-      formData.append('contactnumber', selectedDoctor.contactnumber);
-      formData.append('email', selectedDoctor.email);
-      formData.append('qualification', selectedDoctor.qualification || 'MBBS');
-      formData.append('address', selectedDoctor.address || 'Not provided');
-      formData.append('bio', selectedDoctor.bio || 'No bio provided');
-      
-      // Append profile image if it exists
-      if (selectedDoctor.profileImage) {
-        formData.append('profileimage', selectedDoctor.profileImage);
-      }
-
-      // Log the data being sent
-      console.log('Sending update data:', Object.fromEntries(formData));
-
-      const response = await axios.put(
-        `${API_URL}/doctor/updatedoctors/${originalEmail}`,
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      console.log('Update response:', response.data);
-
-      if (response.data.success) {
-        // Update the doctors list with the new data
-        const updatedDoctor = response.data.data.doctor;
-        setDoctors(prevDoctors => 
-          prevDoctors.map(doctor => 
-            doctor.email === updatedDoctor.email ? updatedDoctor : doctor
-          )
-        );
-        
-        setShowEditPopup(false);
-        // Fetch fresh data from backend
-        await fetchDoctors();
-      } else {
-        setError('Failed to update doctor');
-      }
-    } catch (error) {
-      console.error('Error updating doctor:', error);
-      setError(error.response?.data?.message || 'Failed to update doctor');
-    }
-  };
-
-  // Update handleTransferToAddDoctor function
-  // const handleTransferToAddDoctor = async (doctor) => {
-  //   try {
-  //     const userData = JSON.parse(localStorage.getItem('userData'));
-  //     const token = userData?.token;   
-  //     if (!token) {
-  //       const userData = JSON.parse(localStorage.getItem('userData'));
-  //       token = userData?.token;
-  //     }
-
-  //     // Now transfer to adddoctor collection
-  //     const response = await axios.post(
-  //       `${API_URL}/admin/transfer-signup-data`,
-  //       {
-  //         doctorEmail: doctor.email
-  //       },
-  //       {
-  //         headers: {
-  //           'Authorization': `Bearer ${token}`,
-  //           'Content-Type': 'application/json'
-  //         }
-  //       }
-  //     );
-
-  //     if (response.data.success) {
-  //       // Remove the transferred doctor from the list
-  //       setDoctors(doctors.filter(d => d.email !== doctor.email));
-  //       alert('Doctor transferred successfully to Add Doctor collection');
-  //     } else {
-  //       // Show error popup if doctor already exists
-  //       setErrorMessage(response.data.message || 'Doctor already exists in Add Doctor collection');
-  //       setShowErrorPopup(true);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error transferring doctor:', error);
-  //     setErrorMessage(error.response?.data?.message || 'Failed to transfer doctor');
-  //     setShowErrorPopup(true);
-  //   }
-  // };
-
-  // Update the file input handler
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedDoctor(prev => ({
-        ...prev,
-        profileImage: file
-      }));
-    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -564,9 +479,6 @@ const DoctorsList = () => {
                         <button className="view-btn" onClick={() => handleView(doctor)}>
                           <i className="fas fa-eye"></i>
                         </button>
-                        <button className="edit-btn" onClick={() => handleEdit(doctor)}>
-                          <i className="fas fa-edit"></i>
-                        </button>
                         <button className="delete-btn" onClick={() => handleDelete(doctor)}>
                           <i className="fas fa-trash"></i>
                         </button>
@@ -672,100 +584,6 @@ const DoctorsList = () => {
                     <p><strong>Email:</strong> {selectedDoctor.email}</p>
                    </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Modal */}
-        {showEditPopup && selectedDoctor && (
-          <div className="popup-overlay">
-            <div className="popup-content">
-              <div className="popup-header">
-                <h3>Edit Doctor</h3>
-                <button className="close-btn" onClick={() => setShowEditPopup(false)}>
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-              <div className="popup-body">
-                <form onSubmit={handleEditSubmit} className="edit-doctor-form">
-                  <div className="form-group">
-                    <label>Full Name:</label>
-                    <input
-                      type="text"
-                      value={selectedDoctor.fullName}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, fullName: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Specialization:</label>
-                    <select
-                      value={selectedDoctor.specialization}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, specialization: e.target.value})}
-                      required
-                    >
-                      <option value="">Select Specialization</option>
-                      <option value="Cardiologist">Cardiologist</option>
-                      <option value="Neurologist">Neurologist</option>
-                      <option value="Dermatologist">Dermatologist</option>
-                      <option value="Orthopedics">Orthopedics</option>
-                      <option value="General Medicine">General Medicine</option>
-
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Experience:</label>
-                    <input
-                      type="text"
-                      value={selectedDoctor.experience}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, experience: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Availability:</label>
-                    <input
-                      type="text"
-                      value={selectedDoctor.availability}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, availability: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Contact Number:</label>
-                    <input
-                      type="tel"
-                      value={selectedDoctor.contactnumber}
-                      onChange={(e) => setSelectedDoctor({...selectedDoctor, contactnumber: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email:</label>
-                    <input
-                      type="email"
-                      value={selectedDoctor.email}
-                      readOnly
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Profile Image:</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                  <div className="popup-footer">
-                    <button type="submit" className="save-btn">Save Changes</button>
-                    {/* <button type="button" className="transfer-btn" onClick={() => handleTransferToAddDoctor(selectedDoctor)}>
-                      <i className="fas fa-exchange-alt"></i> Transfer to Add Doctor
-                    </button> */}
-                    <button type="button" className="cancel-btn" onClick={() => setShowEditPopup(false)}>Cancel</button>
-                  </div>
-                </form>
               </div>
             </div>
           </div>

@@ -11,24 +11,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 // Add custom styles
 const styles = {
-  verificationStatus: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: '10px',
-    cursor: 'pointer',
-    transition: 'transform 0.2s ease',
-  },
-  verifiedIcon: {
-    color: '#28a745',
-    fontSize: '1.2rem',
-    transition: 'all 0.3s ease',
-  },
-  unverifiedIcon: {
-    color: '#dc3545',
-    fontSize: '1.2rem',
-    transition: 'all 0.3s ease',
-  },
   imageModal: {
     maxWidth: '90vw',
     maxHeight: '90vh',
@@ -429,17 +411,6 @@ const HistoryList = () => {
                         >
                           <i className={`fas fa-${permissions[patient._id] ? 'user-check' : 'user-plus'}`}></i>
                         </button>
-                        <div 
-                          className="verification-status" 
-                          style={styles.verificationStatus}
-                          onClick={() => handlePermissionToggle(patient)}
-                        >
-                          {verifiedPatients[patient._id] ? (
-                            <i className="fas fa-check-circle" style={styles.verifiedIcon}></i>
-                          ) : (
-                            <i className="fas fa-times-circle" style={styles.unverifiedIcon}></i>
-                          )}
-                        </div>
                       </div>
                     </td>
                   </tr>

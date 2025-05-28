@@ -37,10 +37,6 @@ const AllAppointments = () => {
         navigate('/patient/patient-dashboard', { replace: true });
         return;
       }
-
-      console.log('Fetching appointments with token:', userData.token);
-      console.log('API URL:', `${API_URL}/appointment/patient`);
-
       const response = await axios.get(
         `${API_URL}/appointment/patient`,
         {
@@ -50,12 +46,22 @@ const AllAppointments = () => {
           }
         }
       );
-
       console.log('API Response:', response.data);
 
       if (response.data.success) {
-        setAppointments(response.data.data || []);
-        if (!response.data.data || response.data.data.length === 0) {
+        console.log('Raw appointments data:', response.data.data);
+        const formattedAppointments = response.data.data.map(appointment => {
+          console.log('Processing appointment:', {
+            id: appointment._id,
+            date: appointment.appointmentDate,
+            time: appointment.appointmentTime,
+            doctor: appointment.doctor
+          });
+          return appointment;
+        });
+        console.log('Formatted appointments:', formattedAppointments);
+        setAppointments(formattedAppointments);
+        if (!formattedAppointments || formattedAppointments.length === 0) {
           setError('You have no appointments yet. Book your first appointment!');
         }
       } else {
@@ -294,23 +300,11 @@ const AllAppointments = () => {
                   {filteredAppointments.map((appointment) => (
                     <tr key={appointment._id}>
                       <td>Dr. {appointment.doctor?.name || 'N/A'}</td>
-                      {/* <td>
-                        {appointment.appointmentDate ? 
-                          new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          }) 
-                          : 'N/A'
-                        }
-                      </td> */}
-                      <td>
-                        {new Date(appointment.appointmentDate).toLocaleDateString('en-US')}
-                      </td>
-                      <td>{appointment.appointmentTime || 'N/A'}</td>
+                      <td>{appointment.formattedDate || appointment.appointmentDate}</td>
+                      <td>{appointment.formattedTime || appointment.appointmentTime}</td>
                       <td>
                         <span className={`status-badge ${appointment.status?.toLowerCase()}`}>
-                          {appointment.status}
+                          {appointment.status?.toUpperCase()}
                         </span>
                       </td>
                       <td className="action-buttons">
@@ -362,19 +356,11 @@ const AllAppointments = () => {
               <div className="appointment-details">
                 <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctor?.name || 'N/A'}</p>
                 <p><strong>Department:</strong> {selectedAppointment.department || 'N/A'}</p>
-                <p><strong>Date:</strong> {
-                  selectedAppointment.appointmentDate ?
-                    new Date(selectedAppointment.appointmentDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })
-                    : 'N/A'
-                }</p>
-                <p><strong>Time:</strong> {selectedAppointment.appointmentTime || 'N/A'}</p>
+                <p><strong>Date:</strong> {selectedAppointment.formattedDate || selectedAppointment.appointmentDate}</p>
+                <p><strong>Time:</strong> {selectedAppointment.formattedTime || selectedAppointment.appointmentTime}</p>
                 <p><strong>Status:</strong>
                   <span className={`status-badge ${selectedAppointment.status?.toLowerCase()}`}>
-                    {selectedAppointment.status}
+                    {selectedAppointment.status?.toUpperCase()}
                   </span>
                 </p>
                 <p><strong>Reason:</strong> {selectedAppointment.reason || 'N/A'}</p>
@@ -398,8 +384,8 @@ const AllAppointments = () => {
               <p>Are you sure you want to delete this appointment?</p>
               <div className="appointment-summary">
                 <p><strong>Doctor:</strong> Dr. {selectedAppointment.doctor?.name || 'N/A'}</p>
-                <p><strong>Date:</strong> {new Date(selectedAppointment.appointmentDate).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> {selectedAppointment.appointmentTime}</p>
+                <p><strong>Date:</strong> {selectedAppointment.formattedDate || selectedAppointment.appointmentDate}</p>
+                <p><strong>Time:</strong> {selectedAppointment.formattedTime || selectedAppointment.appointmentTime}</p>
               </div>
               <div className="modal-footer">
                 <button className="delete-btn" onClick={() => handleDelete(selectedAppointment)}>
