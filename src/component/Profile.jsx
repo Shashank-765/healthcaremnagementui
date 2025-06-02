@@ -77,7 +77,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
-    navigate('/login');
+    navigate('/');
   };
 
   const handleFileUpload = (e) => {

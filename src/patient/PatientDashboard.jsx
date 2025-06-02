@@ -39,6 +39,7 @@ const PatientDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -124,6 +125,35 @@ const PatientDashboard = () => {
 
     fetchDashboard();
   }, [navigate]);
+
+  // Add this new useEffect for notifications
+  useEffect(() => {
+    const fetchUnreadNotifications = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('userData'));
+        if (!userData || !userData.token) return;
+
+        const response = await axios.get(`${API_URL}/notifications/unread/count`, {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.data.success) {
+          setUnreadNotifications(response.data.count);
+        }
+      } catch (err) {
+        console.error('Error fetching unread notifications:', err);
+      }
+    };
+
+    fetchUnreadNotifications();
+    // Set up polling every 30 seconds
+    const interval = setInterval(fetchUnreadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const patienttransferApproval = async () => {
     try {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}'); 
