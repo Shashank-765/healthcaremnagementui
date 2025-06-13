@@ -172,7 +172,7 @@ const BookAppointmentForm = () => {
             disabled={loading}
           >
             <option value="">Select Department</option>
-            <option value="Cardiology">Cardiology</option>
+            <option value="Cardiologist">Cardiology</option>
             <option value="Neurologist">Neurologist</option>
             <option value="Orthopedics">Orthopedics</option>
             <option value="General Medicine">General Medicine</option>
