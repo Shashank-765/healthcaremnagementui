@@ -9,7 +9,7 @@ import bannerImage from '../image/banner.png';
 import logoImage from '../image/logo.png';
 import Navbar from '../component/Navbar';
 
-const API_URL = 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();

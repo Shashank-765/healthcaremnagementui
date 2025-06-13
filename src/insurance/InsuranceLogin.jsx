@@ -5,7 +5,7 @@ import doctorImage from '../image/registernow.png';
 import Cookies from 'js-cookie';
 
 // Update API URL to match your backend structure
-const API_URL = 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const InsuranceLogin = () => {
   const navigate = useNavigate();

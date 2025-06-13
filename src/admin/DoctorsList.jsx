@@ -8,7 +8,7 @@ import bannerImage from '../image/banner.png';
 import Navbar from '../component/Navbar';
 import Cookies from 'js-cookie';
 
-const API_URL = 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const DoctorsList = () => {
   const navigate = useNavigate();

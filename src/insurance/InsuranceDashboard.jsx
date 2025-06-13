@@ -7,7 +7,7 @@ import logoImage from '../image/logo.png';
 import correct from '../image/correct1.jpg';
 import Cookies from 'js-cookie';
 import useInsurancePatients from './useInsurancePatients';
-
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 const InsuranceDashboard = () => {
     const navigate = useNavigate();
     const [expandedItem, setExpandedItem] = useState(null);
